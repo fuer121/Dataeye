@@ -1,0 +1,43 @@
+{
+  "name": "ju-chacha-goal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "node --test tests/*.test.mjs",
+    "capture:analyze": "node scripts/analyze-capture.js",
+    "capture:validate": "node scripts/validate-request.js",
+    "capture:spec": "node scripts/generate-api-spec.js",
+    "capture:preview": "node scripts/extract-ranking-preview.js",
+    "capture:audit": "node scripts/audit-capture-material.js",
+    "capture:preflight": "node scripts/capture-preflight.js",
+    "capture:pipeline": "node scripts/run-capture-pipeline.js",
+    "capture:watch": "node scripts/watch-captures.js",
+    "capture:env": "node scripts/extract-live-env-template.js",
+    "capture:import": "node scripts/import-capture-ranking.js",
+    "dataeye:daily": "node scripts/dataeye-daily.js",
+    "dataeye:collect": "node scripts/collect-live.js --source dataeye --confirmed-preview",
+    "dataeye:renewal-probe": "node scripts/dataeye-renewal-probe.js",
+    "dataeye:refresh-login": "node scripts/refresh-dataeye-login.js",
+    "mvp:status": "node scripts/check-mvp-status.js",
+    "collect:preview": "node scripts/live-collection-preview.js",
+    "collect:live": "node scripts/collect-live.js",
+    "novels:import": "node scripts/import-novel-mappings.js",
+    "novels:import:feishu": "node scripts/import-feishu-novel-mappings.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "lucide-react": "^0.468.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0"
+  }
+}
