@@ -42,7 +42,7 @@ test("README keeps fenced code blocks balanced and mentions verified DataEye liv
   assert.match(readme, /预检失败时.*不要执行.*collect:live/s);
   assert.match(readme, /npm run mvp:status/);
   assert.match(readme, /\/api\/status/);
-  assert.match(readme, /本地 MVP 状态卡/);
+  assert.match(readme, /本地 MVP 状态报告/);
   assert.match(readme, /最新抓包材料/);
   assert.match(readme, /上传抓包/);
   assert.match(readme, /上传成功后会自动生成 DataEye 抓包报告/);

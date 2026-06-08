@@ -36,7 +36,7 @@ SQLITE_PATH=./data/local.sqlite npm run dev
 
 ## 页面
 
-- `/`：榜单数据页，默认展示本地已有的最新榜单日期，支持日期、来源、匹配状态、数据性质、榜单类型、周期和榜期筛选，展示来源标识、数据性质、榜单类型、周期和榜期，也支持手动触发采集。数据性质包括模拟、抓包导入和真实 live。页面顶部会显示本地 MVP 状态卡，核对 DataEye live 条数、类型数、周期数、最近预检状态、最新日期、最新抓包材料、小说映射和红果暂停状态；登录态过期或最新 DataEye 抓包为 fresh 时，可在页面点击 `刷新登录态并预检`，它只刷新本地 `.env.local.dataeye` 并执行预检，不会自动落库。
+- `/`：榜单数据页，默认展示本地已有的最新榜单日期，支持日期、来源、匹配状态、数据性质、榜单类型、周期和榜期筛选，展示来源标识、数据性质、榜单类型、周期和榜期，也支持手动触发采集。数据性质包括模拟、抓包导入和真实 live。登录态过期或最新 DataEye 抓包为 fresh 时，页面会显示 `刷新登录态并预检` 操作入口；它只刷新本地 `.env.local.dataeye` 并执行预检，不会自动落库。
 - `/novels`：小说库页面，支持搜索小说名、短剧/漫剧名，导入模拟映射，上传 CSV/JSON 映射文件，同步飞书电子表格，并手动新增、编辑、删除单条映射。
 
 可以用查询参数直接打开某个筛选视图，例如查看已落库的 DataEye 真实榜单：
@@ -199,7 +199,7 @@ npm run capture:preflight
 npm run capture:pipeline
 ```
 
-也可以在首页点击 `上传抓包`，直接把 Charles/Proxyman 导出的 `.har`、`.json`、`.txt` 或 `.curl` 文件保存到本地 `captures/`。上传成功后会自动生成 DataEye 抓包报告，上传 API 也会返回 pipeline 摘要；状态卡会重新读取最新 DataEye 抓包材料，再根据新鲜度决定是否允许刷新登录态。
+也可以在首页点击 `上传抓包`，直接把 Charles/Proxyman 导出的 `.har`、`.json`、`.txt` 或 `.curl` 文件保存到本地 `captures/`。上传成功后会自动生成 DataEye 抓包报告，上传 API 也会返回 pipeline 摘要；页面会重新读取最新 DataEye 抓包材料，再根据新鲜度决定是否允许刷新登录态。
 
 上传后可继续点击 `生成 DataEye 抓包报告`，它等价于从页面触发 `npm run capture:pipeline -- --source dataeye --login-env-file .env.local.dataeye`。这个按钮只生成抓包分析、验证、预览和接口规格报告，不会刷新登录态，也不会执行 `collect:live` 落库。
 

@@ -37,20 +37,18 @@ const dataKindLabels = {
   live: "真实 live"
 };
 
-const rankTypeLabels = {
-  all: "全部榜单类型",
-  0: "漫剧热播榜",
-  1: "动态漫榜",
-  2: "沙雕漫榜",
-  3: "真人AI榜"
-};
+const namedRankTypeOptions = [
+  ["0", "漫剧热播榜"],
+  ["1", "动态漫榜"],
+  ["2", "沙雕漫榜"],
+  ["3", "真人AI榜"]
+];
 
-const rankPeriodLabels = {
-  all: "全部周期",
-  day: "日榜",
-  week: "周榜",
-  month: "月榜"
-};
+const rankPeriodOptions = [
+  ["day", "日榜"],
+  ["week", "周榜"],
+  ["month", "月榜"]
+];
 
 export default function DashboardClient({
   initialDate,
@@ -58,7 +56,7 @@ export default function DashboardClient({
   initialMatch = "all",
   initialDataKind = "all",
   initialRankType = "all",
-  initialRankPeriod = "all",
+  initialRankPeriod = "day",
   initialPeriodValue = "",
   initialItems = [],
   initialRuns = [],
@@ -101,11 +99,6 @@ export default function DashboardClient({
     return `/?${params.toString()}`;
   }, [date, source, dataKind, rankType, rankPeriod, periodValue]);
 
-  const matchedCount = items.filter((item) => item.matchStatus === "matched").length;
-  const unmatchedCount = Math.max(items.length - matchedCount, 0);
-  const matchRate = items.length ? `${Math.round((matchedCount / items.length) * 100)}%` : "0%";
-  const statusChecks = mvpStatus?.checks || [];
-  const statusByName = Object.fromEntries(statusChecks.map((item) => [item.name, item]));
   const latestPreview = mvpStatus?.dataeye?.latestPreview;
   const latestCapture = mvpStatus?.dataeye?.latestCapture;
   const hasExpiredDataEyePreview = latestPreview?.health === "auth_expired";
@@ -460,27 +453,6 @@ export default function DashboardClient({
           </select>
         </label>
         <label>
-          榜单类型
-          <select value={rankType} onChange={(event) => setRankType(event.target.value)}>
-            <option value="all">{rankTypeLabels.all}</option>
-            {Array.from({ length: 21 }, (_, index) => String(index)).map((value) => (
-              <option key={value} value={value}>
-                {rankTypeLabels[value] || `未命名榜单 rankType=${value}`}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          周期
-          <select value={rankPeriod} onChange={(event) => setRankPeriod(event.target.value)}>
-            {Object.entries(rankPeriodLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           榜期
           <input value={periodValue} placeholder="全部榜期" onChange={(event) => setPeriodValue(event.target.value)} />
         </label>
@@ -507,47 +479,6 @@ export default function DashboardClient({
 
       <StatusMessage message={message} />
 
-      <section className="status-overview" aria-label="MVP 状态">
-        <div>
-          <span>本地 MVP</span>
-          <strong>{mvpStatus?.overall || "unknown"}</strong>
-        </div>
-        <div>
-          <span>DataEye live</span>
-          <strong>{mvpStatus?.dataeye?.liveCount ?? 0} 条</strong>
-        </div>
-        <div>
-          <span>DataEye 类型/周期</span>
-          <strong>
-            {mvpStatus?.dataeye?.liveRankTypeCount ?? 0}/{mvpStatus?.dataeye?.livePeriodCount ?? 0}
-          </strong>
-        </div>
-        <div>
-          <span>最近预检</span>
-          <strong>{mvpStatus?.dataeye?.latestPreview?.health || "missing"}</strong>
-        </div>
-        <div>
-          <span>最近调度</span>
-          <strong>{mvpStatus?.dataeye?.latestDaily?.health || "missing"}</strong>
-        </div>
-        <div>
-          <span>最新日期</span>
-          <strong>{mvpStatus?.dataeye?.latestLiveDate || "无"}</strong>
-        </div>
-        <div>
-          <span>最新抓包</span>
-          <strong>{latestCapture?.exists ? `${latestCapture.rankingDate || "未知"} / ${latestCapture.freshness?.note || "未知"}` : "无"}</strong>
-        </div>
-        <div>
-          <span>小说映射</span>
-          <strong>{mvpStatus?.novels?.mappingCount ?? 0} 条</strong>
-        </div>
-        <div>
-          <span>红果 live</span>
-          <strong>{statusByName["红果 live"]?.status || "paused"}</strong>
-        </div>
-      </section>
-
       {shouldShowDataEyeLoginRefresh ? (
         <section className="status-action" aria-label="DataEye 登录态恢复">
           <strong>重新抓包并刷新 DataEye 登录态</strong>
@@ -561,68 +492,69 @@ export default function DashboardClient({
         </section>
       ) : null}
 
-      <section className="stats-row" aria-label="统计">
-        <div>
-          <span>当前记录</span>
-          <strong>{items.length}</strong>
-        </div>
-        <div>
-          <span>已匹配</span>
-          <strong>{matchedCount}</strong>
-        </div>
-        <div>
-          <span>未匹配</span>
-          <strong>{unmatchedCount}</strong>
-        </div>
-        <div>
-          <span>匹配率</span>
-          <strong>{matchRate}</strong>
-        </div>
-        <div>
-          <span>筛选来源</span>
-          <strong>{sourceLabels[source]}</strong>
+      <section className="rank-type-module" aria-label="榜单类型">
+        <div className="rank-type-tabs" role="tablist" aria-label="切换榜单类型">
+          <button
+            className={rankType === "all" ? "active" : ""}
+            type="button"
+            role="tab"
+            aria-selected={rankType === "all"}
+            onClick={() => setRankType("all")}
+          >
+            全部榜单
+          </button>
+          {namedRankTypeOptions.map(([value, label]) => (
+            <button
+              className={rankType === value ? "active" : ""}
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={rankType === value}
+              onClick={() => setRankType(value)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </section>
 
       <section className="table-panel">
         <div className="panel-title">
-          <h2>{date} 榜单</h2>
+          <div className="period-switch" role="tablist" aria-label="切换榜单周期">
+            {rankPeriodOptions.map(([value, label]) => (
+              <button
+                className={rankPeriod === value ? "active" : ""}
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={rankPeriod === value}
+                onClick={() => setRankPeriod(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <span>{loading ? "处理中" : "已同步本地 SQLite"}</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>日期</th>
-                <th>来源</th>
-                <th>数据性质</th>
-                <th>榜单类型</th>
-                <th>周期</th>
                 <th>榜期</th>
-                <th>来源标识</th>
                 <th>排名</th>
                 <th>短剧/漫剧名称</th>
                 <th>热度值</th>
                 <th>类型</th>
                 <th>是否匹配小说</th>
                 <th>对应小说名称</th>
+                <th>数据性质</th>
                 <th>采集时间</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.rankingDate}</td>
-                  <td>{sourceLabels[item.source]}</td>
-                  <td>
-                    <span className={`badge data-kind ${item.dataKind}`}>
-                      {dataKindLabels[item.dataKind] || item.dataKind}
-                    </span>
-                  </td>
-                  <td>{item.rankTypeName || rankTypeLabels[item.rankType] || `rankType=${item.rankType}`}</td>
-                  <td>{rankPeriodLabels[item.rankPeriod] || item.rankPeriod}</td>
                   <td>{item.periodValue}</td>
-                  <td className="source-ref-cell">{item.sourceRef}</td>
                   <td>{item.rank}</td>
                   <td className="strong-cell">{item.title}</td>
                   <td>{item.heatValue}</td>
@@ -642,12 +574,17 @@ export default function DashboardClient({
                       </Link>
                     )}
                   </td>
+                  <td>
+                    <span className={`badge data-kind ${item.dataKind}`}>
+                      {dataKindLabels[item.dataKind] || item.dataKind}
+                    </span>
+                  </td>
                   <td>{new Date(item.collectedAt).toLocaleString("zh-CN")}</td>
                 </tr>
               ))}
               {!items.length ? (
                 <tr>
-                  <td colSpan="14" className="empty-cell">
+                  <td colSpan="9" className="empty-cell">
                     当前筛选条件下暂无数据。可以先导入模拟小说库，再采集 DataEye 模拟榜单。
                   </td>
                 </tr>
