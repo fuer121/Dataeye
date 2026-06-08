@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   assessRankingReadiness,
   auditCaptureMaterial,
+  listCaptureFiles,
   describeEnvFile,
   isCaptureFileName,
   getRequestDate,
@@ -207,6 +208,19 @@ test("isCaptureFileName only accepts supported capture extensions", () => {
   assert.equal(isCaptureFileName("ranking.curl"), true);
   assert.equal(isCaptureFileName(".gitkeep"), false);
   assert.equal(isCaptureFileName("charles.chls"), false);
+});
+
+test("listCaptureFiles reads supported files from nested capture folders", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "capture-tree-"));
+  const nestedDir = path.join(dir, "dataeye", "2026-06-07");
+  fs.mkdirSync(nestedDir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "root.har"), "{}");
+  fs.writeFileSync(path.join(nestedDir, "motionComic.curl"), "curl https://example.com");
+  fs.writeFileSync(path.join(nestedDir, "notes.md"), "ignore");
+
+  const files = listCaptureFiles(dir).map((filePath) => path.relative(dir, filePath));
+
+  assert.deepEqual(files, ["dataeye/2026-06-07/motionComic.curl", "root.har"]);
 });
 
 test("sortRankingCandidates prioritizes DataEye motion comic daily hot list", () => {

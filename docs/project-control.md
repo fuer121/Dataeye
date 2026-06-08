@@ -24,13 +24,14 @@
 | 2026-06-08 | DataEye 仍是唯一 live 推进源，红果保持暂停 | 红果尚未完成真实接口验证 | 避免未验证采集器混入真实数据 |
 | 2026-06-08 | DataEye 榜单中文名以 `lib/dataeye-rankings.js` 为唯一代码源 | 避免前端、README、入库历史各自硬编码造成错位 | rankType 2 为真人AI榜，rankType 3 为沙雕漫榜 |
 | 2026-06-08 | 未命名 rankType 可入库和出报告，但默认不在前端榜单切换中展示 | 探测范围需要保留，用户界面只展示已确认名称 | 降低误读未命名榜单的风险 |
+| 2026-06-08 | `captures/` 后续允许按来源、日期和周期分目录归档 | 根目录散装 HAR 不利于长期维护 | 抓包读取工具支持递归扫描，整理规范见 `docs/capture-organization.md` |
 
 ## 任务看板
 
 | ID | 任务 | 状态 | 负责人 | 依赖 | 产出 | 验收 |
 | --- | --- | --- | --- | --- | --- | --- |
 | T-001 | 建立项目总控信源并修正 README 榜单名口径 | 完成 | 总控 Agent | 已合并的 `origin/main` | `docs/project-control.md`、README 映射修正 | 文档存在，映射与 `lib/dataeye-rankings.js` 一致，检查通过 |
-| T-002 | 梳理下一轮 DataEye 全量采集验证计划 | 待启动 | 分析型 Agent | T-001 | 采集验证清单 | 明确日期、rankType、period、登录态、落库验收口径 |
+| T-002 | 梳理下一轮 DataEye 全量采集验证计划 | 完成 | 分析型 Agent | T-001 | `docs/dataeye-full-collection-validation-plan.md`、`docs/capture-organization.md`、递归抓包读取支持 | 明确日期、rankType、period、登录态、落库验收口径；抓包子目录可被脚本读取 |
 | T-003 | 执行全量 DataEye live 采集与数据抽检 | 待启动 | 实现型 Agent + 验证型 Agent | T-002、有效 `.env.local.dataeye` | live 数据、运行报告、抽检结论 | `all/all` 采集可运行；失败组合有原因；SQLite 未重复写入 |
 | T-004 | 登录态续期与调度稳定性复核 | 待启动 | 排查型 Agent | T-003 | 续期流程风险清单 | 过期、缺字段、fresh HAR 更新路径均有明确提示 |
 
@@ -50,7 +51,7 @@
 | 上游 | `origin/main` |
 | 分支来源 | `origin/main` commit `67a6031` |
 | 最近已合并功能 | PR #3：DataEye 多榜单 + 多周期采集扩展 |
-| 最近主控提交 | T-001：项目总控信源与 README 榜单名口径同步 |
+| 最近主控提交 | T-002：全量采集验证计划、抓包目录整理规范、递归抓包读取支持 |
 | 当前未提交变更 | 无 |
 | 暂存说明 | 切分支前将 `docs/dataeye-login-refresh.md` 和 `docs/live-collection-preview.md` 的本地运行报告改动暂存到 git stash，避免串入新分支 |
 
@@ -60,12 +61,13 @@
 | --- | --- | --- | --- |
 | 登录态过期导致 live 采集失败 | 高 | DataEye 登录态依赖用户本地 `.env.local.dataeye` | live 前必须预检；失败不落库 |
 | 生成报告文档容易成为脏工作区 | 中 | `docs/*preview*`、`docs/*refresh*` 会随运行更新 | 运行报告默认不随代码提交，提交前单独判断 |
+| 抓包材料散装导致误选旧 HAR | 中 | 根目录已有多批 Charles/Proxyman/cURL 混放 | 后续按 `captures/dataeye/<date>/<period>/` 归档，脚本递归读取 |
 | README 或历史报告口径滞后 | 中 | README 曾保留 rankType 2/3 旧映射 | 代码源以 `lib/dataeye-rankings.js` 为准，主控文档登记同步要求 |
 | 未命名 rankType 被误认为已确认榜单 | 中 | 探测会入库 `rankType=4..20` | 前端只展示已命名榜单，报告保留未命名提示 |
 | 红果真实采集误启动 | 中 | 红果接口未验证 | 页面和脚本维持暂停，不进入 live |
 
 ## 下一步行动
 
-1. 启动 T-002：先定义 DataEye 全量采集验证范围，再执行 live。
-2. T-002 通过后再启动 T-003：执行全量 DataEye live 采集与数据抽检。
-3. 运行报告若更新，只在确认需要沉淀时提交；普通预检报告默认不进入代码提交。
+1. 启动 T-003：按 `docs/dataeye-full-collection-validation-plan.md` 执行全量 DataEye live 采集与数据抽检。
+2. 运行报告若更新，只在确认需要沉淀时提交；普通预检报告默认不进入代码提交。
+3. 单独整理 `captures/` 文件位置前，先确认递归读取后的候选请求数量不下降。
