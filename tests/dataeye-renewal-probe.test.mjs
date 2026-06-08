@@ -25,6 +25,23 @@ test("renewal probe marks a fresh Mac WeChat DataEye capture as ready for login 
   assert.match(result.nextAction, /dataeye:refresh-login/);
 });
 
+test("renewal probe accepts a fresh week request as the DataEye target", () => {
+  const result = inspectDataEyeRenewalReadiness({
+    charles: { port: 8888, open: true, cliAvailable: true },
+    wechat: { running: true, processCount: 2 },
+    targetRequest: {
+      id: "fresh-week.har#0",
+      sourceFile: "captures/fresh-week.har",
+      url: "https://playlet-applet.dataeye.com/playlet/motionComic?pageId=1&pageSize=30&week=2026-06-01%20~%202026-06-07&rankType=1",
+      capturedAt: "2026-06-07T07:30:00.000Z"
+    },
+    now: new Date("2026-06-07T08:00:00.000Z")
+  });
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.canRefreshLogin, true);
+});
+
 test("renewal probe asks for Mac WeChat capture when no target request exists", () => {
   const result = inspectDataEyeRenewalReadiness({
     charles: { port: 8888, open: true, cliAvailable: true },

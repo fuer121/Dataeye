@@ -114,6 +114,8 @@ test("live collection preview accepts DataEye rank type and period arguments", (
   assert.match(source, /--period/);
   assert.match(source, /rankType/);
   assert.match(source, /period/);
+  assert.match(source, /组合摘要/);
+  assert.match(source, /renderComboSummary/);
 });
 
 test("live collection preview reports paused Hongguo without DataEye login instructions", () => {

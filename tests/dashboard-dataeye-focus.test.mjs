@@ -62,17 +62,30 @@ test("dashboard does not render summary statistic cards", () => {
 
 test("dashboard renders named rank types outside the toolbar", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const rankings = fs.readFileSync(path.join(process.cwd(), "lib/dataeye-rankings.js"), "utf8");
 
   assert.match(source, /className="rank-type-module"/);
+  assert.match(source, /DATAEYE_VISIBLE_RANK_TYPE_OPTIONS/);
   assert.match(source, /namedRankTypeOptions/);
-  assert.match(source, /漫剧热播榜/);
-  assert.match(source, /动态漫榜/);
-  assert.match(source, /沙雕漫榜/);
-  assert.match(source, /真人AI榜/);
+  assert.match(source, /namedDataEyeRankTypes/);
+  assert.match(rankings, /0: "漫剧热播榜"/);
+  assert.match(rankings, /1: "动态漫榜"/);
+  assert.match(rankings, /2: "真人AI榜"/);
+  assert.match(rankings, /3: "沙雕漫榜"/);
   assert.doesNotMatch(source, /<span>榜单类型<\/span>/);
   assert.doesNotMatch(source, /rankType === "all" \? "全部榜单"/);
   assert.doesNotMatch(source, /Array\.from\(\{ length: 21 \}/);
   assert.doesNotMatch(source, /未命名榜单 rankType=\$\{value\}/);
+});
+
+test("dashboard hides unnamed DataEye rank types from the visible table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /const visibleItems = useMemo\(\(\) => items\.filter\(shouldDisplayRankingItem\), \[items\]\);/);
+  assert.match(source, /item\?\.source !== "dataeye"/);
+  assert.match(source, /namedDataEyeRankTypes\.has\(Number\(item\?\.rankType\)\)/);
+  assert.match(source, /visibleItems\.map/);
+  assert.doesNotMatch(source, /\{items\.map/);
 });
 
 test("dashboard hides source reference column from the table", () => {
@@ -246,6 +259,23 @@ test("dashboard shows a visible live collection gate before confirmed preview", 
   assert.match(source, /预检通过后可落库/);
   assert.match(source, /已预检，可采集真实榜单/);
   assert.match(source, /canCollectLive \? "已预检，可采集真实榜单" : "预检通过后可落库"/);
+  assert.match(source, /const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;/);
+  assert.match(source, /全量预检通过后可一键落库/);
+  assert.match(source, /已预检，可一键采集全部榜单与周期/);
+});
+
+test("dashboard exposes fixed full-scope DataEye preview and live actions", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /const fullDataEyeScope = \{/);
+  assert.match(source, /rankType: "all"/);
+  assert.match(source, /period: "all"/);
+  assert.match(source, /一键全量预检 DataEye/);
+  assert.match(source, /一键全量真实采集 DataEye/);
+  assert.match(source, /onClick=\{\(\) => previewLiveCollection\(fullDataEyeScope\)\}/);
+  assert.match(source, /onClick=\{\(\) => collect\("live", liveSource, fullDataEyeScope\)\}/);
+  assert.match(source, /预检当前筛选/);
+  assert.match(source, /采集当前筛选/);
 });
 
 test("dashboard focuses the live data view after successful live collection", () => {

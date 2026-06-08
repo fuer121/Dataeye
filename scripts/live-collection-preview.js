@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { formatShanghaiDate, isValidDateString } from "../lib/date.js";
-import { collectDataEyeRanking } from "../lib/collectors/live.js";
+import { collectDataEyeRankingDetailed } from "../lib/collectors/live.js";
 import { describeEnvFile, maskSensitiveValue, readEnvFile, readEnvLocal, rel, writeMarkdown } from "./capture-utils.js";
 
 const args = parseArgs(process.argv.slice(2));
@@ -38,6 +38,7 @@ async function previewLiveCollection({ source, rankingDate, rankType, period }) 
       rankType,
       period,
       rows: [],
+      combos: [],
       durationMs: Date.now() - startedAt,
       error: "当前 dry-run 只支持 source=dataeye；红果接口尚未验证。",
       env: summarizeEnv(source),
@@ -46,14 +47,15 @@ async function previewLiveCollection({ source, rankingDate, rankType, period }) 
   }
 
   try {
-    const rows = await collectDataEyeRanking({ rankingDate, rankType, period });
+    const details = await collectDataEyeRankingDetailed({ rankingDate, rankType, period });
     return {
       ok: true,
       source,
       rankingDate,
       rankType,
       period,
-      rows,
+      rows: details.rows,
+      combos: details.combos,
       durationMs: Date.now() - startedAt,
       error: "",
       env: summarizeEnv(source),
@@ -67,6 +69,7 @@ async function previewLiveCollection({ source, rankingDate, rankType, period }) 
       rankType,
       period,
       rows: [],
+      combos: [],
       durationMs: Date.now() - startedAt,
       error: error.message,
       action: error.action || "",
@@ -125,6 +128,7 @@ ${result.ok ? "已成功获取真实榜单预览。该脚本未写入 SQLite；�
 | 周期 | ${result.period} |
 | 状态 | ${result.ok ? "ready" : "failed"} |
 | 榜单条数 | ${result.rows.length} |
+| 组合数 | ${result.combos.length} |
 | 耗时 | ${result.durationMs} ms |
 | 错误 | ${result.error || "无"} |
 | 下一步 | ${result.action || "无"} |
@@ -141,6 +145,10 @@ ${result.env.map((item) => `| ${item.key} | ${item.value} |`).join("\n")}
 
 ${renderRows(result.rows.slice(0, 30))}
 
+## 组合摘要
+
+${renderComboSummary(result.combos)}
+
 ## 下一步
 
 ${renderNextStep(result)}
@@ -156,6 +164,19 @@ ${rows
   .map(
     (row) =>
       `| ${escapePipes(row.rankTypeName || row.rankType)} | ${escapePipes(row.rankPeriod)} | ${escapePipes(row.periodValue)} | ${escapePipes(row.rank)} | ${escapePipes(row.title)} | ${escapePipes(row.heatValue)} | ${escapePipes(row.dramaType)} |`
+  )
+  .join("\n")}`;
+}
+
+function renderComboSummary(combos) {
+  if (!combos.length) return "未生成组合摘要。";
+
+  return `| 榜单类型 | 周期 | 榜期 | 状态 | 条数 | 错误 |
+| --- | --- | --- | --- | ---: | --- |
+${combos
+  .map(
+    (combo) =>
+      `| ${escapePipes(combo.rankTypeName || combo.rankType)} | ${escapePipes(combo.rankPeriod)} | ${escapePipes(combo.periodValue)} | ${escapePipes(combo.status)} | ${escapePipes(combo.count)} | ${escapePipes(combo.error || "无")} |`
   )
   .join("\n")}`;
 }

@@ -237,6 +237,17 @@ button:disabled {
   gap: 10px;
 }
 
+.collection-action-panel {
+  margin: 0 0 16px;
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.collection-action-panel span {
+  color: var(--muted);
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

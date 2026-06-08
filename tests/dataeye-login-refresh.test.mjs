@@ -170,6 +170,67 @@ test("refresh-dataeye-login can use a newer non-target motionComic request as th
   assert.match(report, /请求日期 \| 2026-06-06/);
 });
 
+test("refresh-dataeye-login can derive a valid ranking date from a week request", () => {
+  const root = process.cwd();
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dataeye-refresh-week-source-"));
+  const capturesDir = path.join(tempRoot, "captures");
+  fs.mkdirSync(capturesDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(capturesDir, "week.har"),
+    JSON.stringify({
+      log: {
+        entries: [
+          {
+            startedDateTime: "2026-06-07T12:07:34.895Z",
+            request: {
+              method: "GET",
+              url: "https://playlet-applet.dataeye.com/playlet/motionComic?pageId=1&pageSize=30&week=2026-06-01%20~%202026-06-07&rankType=1",
+              headers: [
+                { name: "authentication", value: "week-authentication-value" },
+                { name: "loginUserId", value: "650985" },
+                { name: "S", value: "test-signature-value-1234" },
+                { name: "referer", value: "https://servicewechat.com/test/page-frame.html" },
+                { name: "user-agent", value: "MicroMessenger/8.0.74 iPhone" }
+              ]
+            },
+            response: {
+              status: 200,
+              content: {
+                mimeType: "application/json",
+                text: JSON.stringify({
+                  statusCode: 200,
+                  content: [
+                    {
+                      ranking: 1,
+                      playletName: "周榜作品",
+                      playCountAdd: "1.0亿",
+                      tags: "[\"都市日常\"]"
+                    }
+                  ]
+                })
+              }
+            }
+          }
+        ]
+      }
+    })
+  );
+
+  const result = spawnSync(
+    "node",
+    [path.join(root, "scripts/refresh-dataeye-login.js"), "--skip-preview", "--allow-stale-capture"],
+    {
+      cwd: tempRoot,
+      encoding: "utf8"
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const report = fs.readFileSync(path.join(tempRoot, "docs/dataeye-login-refresh.md"), "utf8");
+  assert.match(report, /请求日期 \| 2026-06-07/);
+});
+
 test("refresh-dataeye-login fails when refreshed DataEye login state cannot pass preview", () => {
   const root = process.cwd();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dataeye-refresh-preview-failed-"));

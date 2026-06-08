@@ -129,6 +129,46 @@ test("ranking upsert keeps DataEye rank type and period rows separate", () => {
   assert.equal(listRankingEntries({ date: "2026-06-06", source: "dataeye", rankPeriod: "week" }).length, 1);
 });
 
+test("ranking query uses canonical DataEye rank type names when stored labels were wrong", () => {
+  useTempDb("ranking-dataeye-rank-type-name-normalize");
+  upsertRankingEntries([
+    {
+      source: "dataeye",
+      dataKind: "live",
+      rankingDate: "2026-06-07",
+      rankType: 2,
+      rankTypeName: "沙雕漫榜",
+      rankPeriod: "day",
+      periodValue: "2026-06-07",
+      rank: 1,
+      title: "测试作品 A",
+      heatValue: "1.0亿",
+      dramaType: "测试",
+      sourceRef: "test"
+    },
+    {
+      source: "dataeye",
+      dataKind: "live",
+      rankingDate: "2026-06-07",
+      rankType: 3,
+      rankTypeName: "真人AI榜",
+      rankPeriod: "day",
+      periodValue: "2026-06-07",
+      rank: 1,
+      title: "测试作品 B",
+      heatValue: "1.0亿",
+      dramaType: "测试",
+      sourceRef: "test"
+    }
+  ]);
+
+  const rows = listRankingEntries({ date: "2026-06-07", source: "dataeye", dataKind: "live" });
+  const byRankType = new Map(rows.map((row) => [row.rankType, row.rankTypeName]));
+
+  assert.equal(byRankType.get(2), "真人AI榜");
+  assert.equal(byRankType.get(3), "沙雕漫榜");
+});
+
 test("schema migration preserves capture data kind and allows later live rows", () => {
   const db = new Database(path.join(os.tmpdir(), `ranking-migration-${Date.now()}-${Math.random()}.sqlite`));
   db.exec(`

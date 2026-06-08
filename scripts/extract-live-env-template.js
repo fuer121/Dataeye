@@ -4,22 +4,25 @@ import path from "node:path";
 
 import {
   assessRankingReadiness,
+  getRequestDate,
   listCaptureFiles,
   maskSensitiveValue,
   parseCaptureFiles,
   rel,
   ROOT_DIR,
-  sortRankingCandidates,
   summarizeCaptureFreshness,
   writeMarkdown
 } from "./capture-utils.js";
+import {
+  compareDataEyeMotionComicRequests,
+  getDataEyeRequestRankingDate,
+  isDataEyeMotionComicRequest
+} from "../lib/dataeye-capture-target.js";
 
 const args = parseArgs(process.argv.slice(2));
 const files = listCaptureFiles();
 const { requests, errors } = parseCaptureFiles(files);
-const candidates = sortRankingCandidates(
-  requests.filter((request) => request.isLikelyRanking && isDataEyeMotionComicTarget(request))
-);
+const candidates = requests.filter((request) => request.isLikelyRanking && isDataEyeMotionComicRequest(request)).sort(compareDataEyeMotionComicRequests);
 const selected = candidates[0] || null;
 const localEnvPath = args.writeLocal && selected ? writeLocalEnvFile(selected) : "";
 const output = writeMarkdown(
@@ -54,7 +57,7 @@ function renderTemplate({ files, requests, errors, selected, localEnvPath }) {
 
 ## 状态
 
-未找到 \`playlet-applet.dataeye.com/playlet/motionComic?rankType=0\` 目标请求。
+未找到 \`playlet-applet.dataeye.com/playlet/motionComic\` 目标请求。
 
 | 项 | 数量 |
 | --- | ---: |
@@ -187,23 +190,6 @@ function escapeEnvValue(value) {
   return JSON.stringify(text);
 }
 
-function isDataEyeMotionComicTarget(request) {
-  try {
-    const url = new URL(request.url);
-    return (
-      url.hostname === "playlet-applet.dataeye.com" &&
-      url.pathname === "/playlet/motionComic" &&
-      url.searchParams.get("rankType") === "0"
-    );
-  } catch {
-    return false;
-  }
-}
-
 function getRequestDay(request) {
-  try {
-    return new URL(request.url).searchParams.get("day");
-  } catch {
-    return "";
-  }
+  return getDataEyeRequestRankingDate(request) || getRequestDate(request);
 }

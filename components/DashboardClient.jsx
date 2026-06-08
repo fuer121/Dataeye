@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import StatusMessage from "@/components/StatusMessage";
+import { DATAEYE_VISIBLE_RANK_TYPE_OPTIONS } from "@/lib/dataeye-rankings";
 
 const sourceLabels = {
   all: "全部来源",
@@ -37,12 +38,12 @@ const dataKindLabels = {
   live: "真实 live"
 };
 
-const namedRankTypeOptions = [
-  ["0", "漫剧热播榜"],
-  ["1", "动态漫榜"],
-  ["2", "沙雕漫榜"],
-  ["3", "真人AI榜"]
-];
+const namedRankTypeOptions = DATAEYE_VISIBLE_RANK_TYPE_OPTIONS;
+const namedDataEyeRankTypes = new Set(namedRankTypeOptions.map(([value]) => Number(value)));
+const fullDataEyeScope = {
+  rankType: "all",
+  period: "all"
+};
 
 const rankPeriodOptions = [
   ["day", "日榜"],
@@ -77,6 +78,7 @@ export default function DashboardClient({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [confirmedLivePreviewKey, setConfirmedLivePreviewKey] = useState("");
+  const visibleItems = useMemo(() => items.filter(shouldDisplayRankingItem), [items]);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ date, source, match, dataKind, rankType, rankPeriod });
@@ -145,9 +147,11 @@ export default function DashboardClient({
     router.replace(`${pathname}?${query}`, { scroll: false });
   }, [pathname, query, router]);
 
-  async function collect(mode = "sample", collectSource = source) {
+  async function collect(mode = "sample", collectSource = source, scope = {}) {
+    const targetRankType = scope.rankType || rankType;
+    const targetPeriod = scope.period || rankPeriod;
     if (mode === "live") {
-      const requestedPreviewKey = `${date}:${collectSource}:${rankType}:${rankPeriod}`;
+      const requestedPreviewKey = `${date}:${collectSource}:${targetRankType}:${targetPeriod}`;
       if (confirmedLivePreviewKey !== requestedPreviewKey) {
         setMessage({
           type: "warning",
@@ -168,8 +172,8 @@ export default function DashboardClient({
           source: collectSource,
           mode,
           confirmedPreview: mode === "live",
-          rankType,
-          period: rankPeriod
+          rankType: targetRankType,
+          period: targetPeriod
         })
       });
       const payload = await response.json();
@@ -202,17 +206,22 @@ export default function DashboardClient({
   const liveSource = activeSource;
   const captureSource = activeSource;
   const currentLivePreviewKey = `${date}:${liveSource}:${rankType}:${rankPeriod}`;
+  const fullLivePreviewKey = `${date}:${liveSource}:${fullDataEyeScope.rankType}:${fullDataEyeScope.period}`;
   const canCollectLive = confirmedLivePreviewKey === currentLivePreviewKey;
+  const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;
   const liveGateText = canCollectLive ? "已预检，可采集真实榜单" : "预检通过后可落库";
+  const fullLiveGateText = canCollectFullLive ? "已预检，可一键采集全部榜单与周期" : "全量预检通过后可一键落库";
 
-  async function previewLiveCollection() {
+  async function previewLiveCollection(scope = {}) {
+    const targetRankType = scope.rankType || rankType;
+    const targetPeriod = scope.period || rankPeriod;
     setLoading(true);
     setMessage(null);
     try {
       const response = await fetch("/api/collect/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, source: liveSource, rankType, period: rankPeriod })
+        body: JSON.stringify({ date, source: liveSource, rankType: targetRankType, period: targetPeriod })
       });
       const payload = await response.json();
 
@@ -390,7 +399,7 @@ export default function DashboardClient({
       <header className="page-header">
         <div>
           <h1>榜单数据</h1>
-          <p>按日期和来源查看短剧/漫剧日榜，并标注小说库精确匹配结果。</p>
+          <p>按日期和来源查看短剧/漫剧榜单，并标注小说库精确匹配结果。</p>
         </div>
         <div className="header-actions">
           <label className="secondary-button file-button">
@@ -464,7 +473,7 @@ export default function DashboardClient({
           导入{sourceLabels[captureSource]}抓包榜单
         </button>
         <button className="ghost-button compact" disabled={loading} onClick={previewLiveCollection}>
-          预检{sourceLabels[liveSource]}真实采集
+          预检当前筛选{sourceLabels[liveSource]}
         </button>
         <button
           className="ghost-button compact"
@@ -472,9 +481,28 @@ export default function DashboardClient({
           title={canCollectLive ? "" : "先完成同一日期、同一来源的预检"}
           onClick={() => collect("live", liveSource)}
         >
-          采集{sourceLabels[liveSource]}真实榜单
+          采集当前筛选{sourceLabels[liveSource]}
         </button>
         <span className="live-gate-status">{liveGateText}</span>
+      </section>
+
+      <section className="status-action collection-action-panel" aria-label="DataEye 全量采集">
+        <strong>全量 DataEye 真实采集</strong>
+        <span>固定按全部可采榜单类型和日榜/周榜/月榜执行，不受当前页面筛选影响。</span>
+        <div className="status-action-row">
+          <button className="secondary-button" disabled={loading} onClick={() => previewLiveCollection(fullDataEyeScope)}>
+            一键全量预检 DataEye
+          </button>
+          <button
+            className="primary-button"
+            disabled={loading || !canCollectFullLive}
+            title={canCollectFullLive ? "" : "先完成同一日期、同一来源的全量预检"}
+            onClick={() => collect("live", liveSource, fullDataEyeScope)}
+          >
+            一键全量真实采集 DataEye
+          </button>
+          <span className="live-gate-status">{fullLiveGateText}</span>
+        </div>
       </section>
 
       <StatusMessage message={message} />
@@ -552,7 +580,7 @@ export default function DashboardClient({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <tr key={item.id}>
                   <td>{item.periodValue}</td>
                   <td>{item.rank}</td>
@@ -582,10 +610,10 @@ export default function DashboardClient({
                   <td>{new Date(item.collectedAt).toLocaleString("zh-CN")}</td>
                 </tr>
               ))}
-              {!items.length ? (
+              {!visibleItems.length ? (
                 <tr>
                   <td colSpan="9" className="empty-cell">
-                    当前筛选条件下暂无数据。可以先导入模拟小说库，再采集 DataEye 模拟榜单。
+                    当前筛选条件下暂无可展示数据。页面默认隐藏未命名的 DataEye 榜单；如需核对原始采集结果，请查看采集报告或后台查询。
                   </td>
                 </tr>
               ) : null}
@@ -627,4 +655,9 @@ function formatCollectError(payload, fallback) {
   const message = payload?.error || fallback;
   if (!payload?.action) return message;
   return `${message} 下一步：${payload.action}`;
+}
+
+function shouldDisplayRankingItem(item) {
+  if (item?.source !== "dataeye") return true;
+  return namedDataEyeRankTypes.has(Number(item?.rankType));
 }
