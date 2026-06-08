@@ -17,6 +17,9 @@ const FIELD_PATTERNS = {
   heatValue: /(hotValue|heatValue|consumeNum|hot|heat|score|popularity|playCount|播放|热度)/i,
   dramaType: /(contentTypes|playletTags|playletTypes|tags|tag|type|types|category|题材|类型)/i
 };
+const FIELD_PRIORITY_KEYS = {
+  heatValue: ["playCountAdd"]
+};
 const REDACTION_RE = /(<[^>]*(redact|hidden|mask|脱敏|隐藏|省略)[^>]*>|\*{3,}|x{4,}|REDACTED|已脱敏)/i;
 
 export function ensureDirs() {
@@ -753,7 +756,7 @@ export function detectRankingFields(item) {
   const fields = {};
 
   for (const [fieldName, pattern] of Object.entries(FIELD_PATTERNS)) {
-    const match = flattened.find(([key]) => pattern.test(key));
+    const match = findPreferredField(flattened, fieldName) || flattened.find(([key]) => pattern.test(key));
     if (match) {
       fields[fieldName] = {
         key: match[0],
@@ -763,6 +766,11 @@ export function detectRankingFields(item) {
   }
 
   return fields;
+}
+
+function findPreferredField(flattened, fieldName) {
+  const preferredKeys = FIELD_PRIORITY_KEYS[fieldName] || [];
+  return flattened.find(([key]) => preferredKeys.some((preferredKey) => key.split(".").pop().toLowerCase() === preferredKey.toLowerCase()));
 }
 
 export function tryParseJson(value) {
