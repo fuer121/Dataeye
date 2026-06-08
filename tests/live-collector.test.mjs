@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { collectDataEyeRanking, CollectorUnavailableError } from "../lib/collectors/live.js";
+import { collectDataEyeRanking, collectDataEyeRankingDetailed, CollectorUnavailableError } from "../lib/collectors/live.js";
 
 const ENV_KEYS = [
   "DATAEYE_AUTHENTICATION",
@@ -285,6 +285,66 @@ test("collectDataEyeRanking probes all rank types and skips unsupported ones", a
     assert.equal(dateRankTypes.length, 21);
     assert.equal(dateRankTypes[0], 0);
     assert.equal(dateRankTypes[20], 20);
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
+test("collectDataEyeRankingDetailed reports day week month combo summary", async () => {
+  const restore = installEnv({
+    DATAEYE_AUTHENTICATION: "auth-value",
+    DATAEYE_LOGIN_USER_ID: "650985"
+  });
+  const originalFetch = global.fetch;
+
+  global.fetch = async (url) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/playlet/motionComicDate") {
+      return new Response(
+        JSON.stringify({
+          statusCode: 200,
+          content: {
+            day: "2026-06-06",
+            week: "2026-06-01 ~ 2026-06-07",
+            month: "2026-06"
+          }
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        statusCode: 200,
+        page: { pageId: 1, pageSize: 30, totalRecords: 1 },
+        content: [
+          {
+            ranking: 1,
+            playletName: `${parsed.searchParams.get("rankType")}-${parsed.searchParams.get("day") || parsed.searchParams.get("week") || parsed.searchParams.get("month")}`,
+            playCountAdd: "1.0亿",
+            tags: "[\"测试\"]"
+          }
+        ]
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  };
+
+  try {
+    const result = await collectDataEyeRankingDetailed({
+      rankingDate: "2026-06-06",
+      rankType: "0",
+      period: "all"
+    });
+
+    assert.equal(result.rows.length, 3);
+    assert.equal(result.combos.length, 3);
+    assert.deepEqual(
+      result.combos.map((combo) => combo.rankPeriod),
+      ["day", "week", "month"]
+    );
+    assert.ok(result.combos.every((combo) => combo.status === "ready"));
   } finally {
     global.fetch = originalFetch;
     restore();

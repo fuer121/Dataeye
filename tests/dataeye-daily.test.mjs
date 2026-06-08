@@ -56,7 +56,7 @@ test("DataEye daily collection only writes live rows after preview returns rows"
   };
 
   try {
-    const result = await runDataEyeDailyCollection({ rankingDate: "2026-06-06" });
+    const result = await runDataEyeDailyCollection({ rankingDate: "2026-06-06", rankType: "0", period: "day" });
 
     assert.equal(result.ok, true);
     assert.equal(result.status, "success");
@@ -166,6 +166,16 @@ test("dataeye daily CLI records auth-expired preflight without inserting rows", 
       db.close();
     }
   }
+});
+
+test("dataeye daily CLI defaults to all rank types and all periods", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "scripts/dataeye-daily.js"), "utf8");
+  const lib = fs.readFileSync(path.join(process.cwd(), "lib/dataeye-daily.js"), "utf8");
+
+  assert.match(source, /const rankType = args\.rankType \|\| "all";/);
+  assert.match(source, /const period = args\.period \|\| "all";/);
+  assert.match(lib, /rankType = "all"/);
+  assert.match(lib, /period = "all"/);
 });
 
 function installEnv(values) {

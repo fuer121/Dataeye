@@ -13,6 +13,7 @@ import {
   parseCaptureFiles,
   rel
 } from "./capture-utils.js";
+import { getDataEyeRequestRankingDate, isDataEyeMotionComicRequest } from "../lib/dataeye-capture-target.js";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const args = parseArgs(process.argv.slice(2));
@@ -142,6 +143,10 @@ function runAutoDataEyeSteps() {
     ...(refreshedDate ? ["--date", refreshedDate] : []),
     "--source",
     "dataeye",
+    "--rank-type",
+    "all",
+    "--period",
+    "all",
     ...loginEnvArgs
   ];
   const daily = runNodeScript(resolveScriptPath("CAPTURE_WATCH_DAILY_SCRIPT", "dataeye-daily.js"), dailyArgs);
@@ -171,36 +176,15 @@ function resolveScriptPath(envKey, fileName) {
 function inferLatestDataEyeRankingDate() {
   const { requests } = parseCaptureFiles(listCaptureFiles());
   const candidates = requests
-    .filter(isDataEyeMotionComicTarget)
+    .filter(isDataEyeMotionComicRequest)
     .map((request) => ({
-      day: getRequestDay(request),
+      day: getDataEyeRequestRankingDate(request),
       timestamp: Date.parse(request.startedDateTime || request.capturedAt || "")
     }))
     .filter((candidate) => candidate.day)
     .sort((a, b) => (Number.isFinite(b.timestamp) ? b.timestamp : 0) - (Number.isFinite(a.timestamp) ? a.timestamp : 0));
 
   return candidates[0]?.day || "";
-}
-
-function isDataEyeMotionComicTarget(request) {
-  try {
-    const url = new URL(request.url);
-    return (
-      url.hostname === "playlet-applet.dataeye.com" &&
-      url.pathname === "/playlet/motionComic" &&
-      url.searchParams.get("rankType") === "0"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getRequestDay(request) {
-  try {
-    return new URL(request.url).searchParams.get("day") || "";
-  } catch {
-    return "";
-  }
 }
 
 function isReadyOutput(output) {

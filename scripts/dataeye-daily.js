@@ -6,8 +6,8 @@ import { describeEnvFile, readEnvFile, readEnvLocal, rel, writeMarkdown } from "
 const args = parseArgs(process.argv.slice(2));
 const source = args.source || "dataeye";
 const rankingDate = args.date || resolveDefaultDate();
-const rankType = args.rankType || "0";
-const period = args.period || "day";
+const rankType = args.rankType || "all";
+const period = args.period || "all";
 const envFileStatus = describeEnvFile(args.envFile);
 
 applyEnvFiles(args.envFile);

@@ -190,6 +190,10 @@ test("watch-captures can refresh DataEye login and run daily with the refreshed 
     "2026-06-06",
     "--source",
     "dataeye",
+    "--rank-type",
+    "all",
+    "--period",
+    "all",
     "--login-env-file",
     envPath
   ]);

@@ -110,7 +110,7 @@ curl -X POST http://localhost:3000/api/collect \
   -d '{"date":"2026-06-06","source":"dataeye","mode":"live","confirmedPreview":true,"rankType":"all","period":"all"}'
 ```
 
-页面上的 `预检 DataEye / 剧查查真实采集` 和 `采集 DataEye / 剧查查真实榜单` 会执行同样的 live 预检与落库流程。默认 CLI 兼容旧用法，只采 `rankType=0 + day`；如需探测并采集 `rankType=0..20` 中所有可返回榜单数组的类型，同时抓日榜、周榜、月榜，传入 `--rank-type all --period all`。当前页面操作按钮固定指向 DataEye；红果只保留为历史/模拟数据筛选和后续抓包分析入口，不推进真实采集。
+页面上的 `预检当前筛选 DataEye / 剧查查` 和 `采集当前筛选 DataEye / 剧查查` 会按当前榜单 tab 和周期 tab 执行 live 预检与落库流程；新增的 `一键全量预检 DataEye` 和 `一键全量真实采集 DataEye` 会固定执行 `rankType=all + period=all`。`collect:preview` 和 `collect:live` 仍兼容旧用法，默认只采 `rankType=0 + day`；`dataeye:daily` 默认升级为 `rankType=all + period=all`。当前页面操作按钮固定指向 DataEye；红果只保留为历史/模拟数据筛选和后续抓包分析入口，不推进真实采集。
 
 DataEye 已知榜单类型：
 
@@ -215,7 +215,7 @@ npm run capture:env
 npm run capture:env -- --write-local
 ```
 
-当前主要推进 DataEye 时，也可以用一条命令完成“从最新目标 HAR 刷新 `.env.local.dataeye` + 自动预检”。该命令会选择 `captures/` 中最像剧查查小程序 `motionComic?rankType=0` 的请求，完整敏感值只写入本地 `.env.local.dataeye`，报告只显示掩码：
+当前主要推进 DataEye 时，也可以用一条命令完成“从最新目标 HAR 刷新 `.env.local.dataeye` + 自动预检”。该命令会选择 `captures/` 中最新、带有效认证头的 `motionComic` 榜单请求，完整敏感值只写入本地 `.env.local.dataeye`，报告只显示掩码：
 
 ```bash
 npm run dataeye:refresh-login
@@ -279,7 +279,7 @@ npm run dataeye:renewal-probe
 docs/dataeye-renewal-probe.md
 ```
 
-探针只检查 Charles 端口/CLI、Mac WeChat 进程、`captures/` 中是否存在 fresh 的 `playlet-applet.dataeye.com/playlet/motionComic?rankType=0` 请求；不会自动执行 GUI 点击，也不会自动导出 Charles HAR。探针显示 ready 后，再运行：
+探针只检查 Charles 端口/CLI、Mac WeChat 进程、`captures/` 中是否存在 fresh 的 `playlet-applet.dataeye.com/playlet/motionComic` 榜单请求；不会自动执行 GUI 点击，也不会自动导出 Charles HAR。探针显示 ready 后，再运行：
 
 ```bash
 npm run dataeye:refresh-login
@@ -321,7 +321,7 @@ npm run capture:watch -- --source hongguo --login-env-file .env.local.hongguo
 npm run capture:watch -- --source dataeye --login-env-file .env.local.dataeye --auto-refresh-login --auto-daily
 ```
 
-这条命令不会操作 Charles/Proxyman GUI；它只监听 `captures/`。当你从 Charles/Proxyman 导出 fresh 的 `motionComic?rankType=0` HAR 后，它会先跑抓包流水线，再刷新 `.env.local.dataeye`，预检通过后按抓包 URL 里的 `day` 执行 `dataeye:daily`。如果抓包偏旧、预检失败或登录态失效，不会写入 live 数据。
+这条命令不会操作 Charles/Proxyman GUI；它只监听 `captures/`。当你从 Charles/Proxyman 导出 fresh 的 `motionComic` HAR 后，它会先跑抓包流水线，再刷新 `.env.local.dataeye`，预检通过后按抓包里的最新榜期执行 `dataeye:daily`。如果抓包偏旧、预检失败或登录态失效，不会写入 live 数据。
 
 流水线会生成 `docs/capture-material-audit.md` 和 `docs/ranking-preview.md`，用于检查材料完整度，并人工核对排名、作品名、热度值和类型是否与小程序页面一致。
 

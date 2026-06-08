@@ -9,9 +9,9 @@ import {
   matchesRequestSource,
   parseCaptureFiles,
   rel,
-  sortRankingCandidates,
   writeMarkdown
 } from "./capture-utils.js";
+import { compareDataEyeMotionComicRequests, isDataEyeMotionComicRequest } from "../lib/dataeye-capture-target.js";
 
 const charles = await inspectCharles();
 const wechat = inspectMacWeChat();
@@ -56,23 +56,10 @@ function findDataEyeTargetRequest() {
   const files = listCaptureFiles();
   const { requests } = parseCaptureFiles(files);
   return (
-    sortRankingCandidates(
-      requests.filter((request) => matchesRequestSource(request, "dataeye") && isDataEyeMotionComicTarget(request))
-    )[0] || null
+    requests
+      .filter((request) => matchesRequestSource(request, "dataeye") && isDataEyeMotionComicRequest(request))
+      .sort(compareDataEyeMotionComicRequests)[0] || null
   );
-}
-
-function isDataEyeMotionComicTarget(request) {
-  try {
-    const url = new URL(request.url);
-    return (
-      url.hostname === "playlet-applet.dataeye.com" &&
-      url.pathname === "/playlet/motionComic" &&
-      url.searchParams.get("rankType") === "0"
-    );
-  } catch {
-    return false;
-  }
 }
 
 function checkPort(host, port) {
