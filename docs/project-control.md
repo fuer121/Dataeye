@@ -32,7 +32,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | T-001 | 建立项目总控信源并修正 README 榜单名口径 | 完成 | 总控 Agent | 已合并的 `origin/main` | `docs/project-control.md`、README 映射修正 | 文档存在，映射与 `lib/dataeye-rankings.js` 一致，检查通过 |
 | T-002 | 梳理下一轮 DataEye 全量采集验证计划 | 完成 | 分析型 Agent | T-001 | `docs/dataeye-full-collection-validation-plan.md`、`docs/capture-organization.md`、递归抓包读取支持 | 明确日期、rankType、period、登录态、落库验收口径；抓包子目录可被脚本读取 |
-| T-003 | 执行全量 DataEye live 采集与数据抽检 | 待启动 | 实现型 Agent + 验证型 Agent | T-002、有效 `.env.local.dataeye` | live 数据、运行报告、抽检结论 | `all/all` 采集可运行；失败组合有原因；SQLite 未重复写入 |
+| T-003 | 执行全量 DataEye live 采集与数据抽检 | blocked | 实现型 Agent + 验证型 Agent | T-002、有效 `.env.local.dataeye` | live 数据、运行报告、抽检结论 | 当前 `rankType=0/day/2026-06-07` 预检返回 `statusCode=401` 登录态失效；需 fresh HAR/cURL 或更新 `.env.local.dataeye` 后重试 |
 | T-004 | 登录态续期与调度稳定性复核 | 待启动 | 排查型 Agent | T-003 | 续期流程风险清单 | 过期、缺字段、fresh HAR 更新路径均有明确提示 |
 
 ## 线程索引
@@ -60,6 +60,7 @@
 | 风险 | 等级 | 当前判断 | 应对 |
 | --- | --- | --- | --- |
 | 登录态过期导致 live 采集失败 | 高 | DataEye 登录态依赖用户本地 `.env.local.dataeye` | live 前必须预检；失败不落库 |
+| T-003 当前阻塞 | 高 | 2026-06-07 `rankType=0/day` 健康预检失败：`statusCode=401`，提示登录态已失效 | 重新导出 fresh DataEye `motionComic` HAR/cURL 到推荐目录，再运行 `npm run dataeye:refresh-login` 和预检 |
 | 生成报告文档容易成为脏工作区 | 中 | `docs/*preview*`、`docs/*refresh*` 会随运行更新 | 运行报告默认不随代码提交，提交前单独判断 |
 | 抓包材料散装导致误选旧 HAR | 中 | 根目录已有多批 Charles/Proxyman/cURL 混放 | 后续按 `captures/dataeye/<date>/<period>/` 归档，脚本递归读取 |
 | README 或历史报告口径滞后 | 中 | README 曾保留 rankType 2/3 旧映射 | 代码源以 `lib/dataeye-rankings.js` 为准，主控文档登记同步要求 |
@@ -68,6 +69,6 @@
 
 ## 下一步行动
 
-1. 启动 T-003：按 `docs/dataeye-full-collection-validation-plan.md` 执行全量 DataEye live 采集与数据抽检。
-2. 运行报告若更新，只在确认需要沉淀时提交；普通预检报告默认不进入代码提交。
-3. 单独整理 `captures/` 文件位置前，先确认递归读取后的候选请求数量不下降。
+1. 解除 T-003 阻塞：将 fresh DataEye `motionComic` HAR/cURL 放入 `captures/dataeye/<date>/<period>/`，或直接更新 `.env.local.dataeye`。
+2. 运行 `npm run dataeye:refresh-login`，再按 `docs/dataeye-full-collection-validation-plan.md` 重跑健康预检。
+3. 健康预检 ready 后，再执行 `rankType=all + period=all` 全量预检和 live。
