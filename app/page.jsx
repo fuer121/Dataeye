@@ -7,7 +7,7 @@ const SOURCES = new Set(["all", "dataeye", "hongguo"]);
 const MATCH_STATUSES = new Set(["all", "matched", "unmatched"]);
 const DATA_KINDS = new Set(["all", "sample", "capture", "live"]);
 const RANK_TYPES = new Set(["all", ...Array.from({ length: 21 }, (_, index) => String(index))]);
-const RANK_PERIODS = new Set(["all", "day", "week", "month"]);
+const RANK_PERIODS = new Set(["day", "week", "month"]);
 
 export default async function HomePage({ searchParams }) {
   const params = (await searchParams) || {};
@@ -17,7 +17,7 @@ export default async function HomePage({ searchParams }) {
   const initialMatch = getAllowed(params.match, MATCH_STATUSES, "all");
   const initialDataKind = getAllowed(params.dataKind, DATA_KINDS, "all");
   const initialRankType = getAllowed(params.rankType, RANK_TYPES, "all");
-  const initialRankPeriod = getAllowed(params.rankPeriod, RANK_PERIODS, "all");
+  const initialRankPeriod = getAllowed(params.rankPeriod, RANK_PERIODS, "day");
   const initialPeriodValue = getString(params.periodValue) || "";
   const initialItems = listRankingEntries({
     date: initialDate,

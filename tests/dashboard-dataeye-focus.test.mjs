@@ -51,35 +51,113 @@ test("dashboard does not style failed collection runs as success", () => {
   assert.match(source, /type: response\.ok && !hasFailedRun \? "success" : "warning"/);
 });
 
-test("dashboard surfaces match coverage statistics", () => {
+test("dashboard does not render summary statistic cards", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
-  assert.match(source, /const matchedCount = items\.filter\(\(item\) => item\.matchStatus === "matched"\)\.length;/);
-  assert.match(source, /const unmatchedCount = Math\.max\(items\.length - matchedCount, 0\);/);
-  assert.match(source, /const matchRate = items\.length \? `\$\{Math\.round\(\(matchedCount \/ items\.length\) \* 100\)\}%` : "0%";/);
-  assert.match(source, />未匹配</);
-  assert.match(source, />匹配率</);
+  assert.doesNotMatch(source, /aria-label="统计"/);
+  assert.doesNotMatch(source, /className="stats-row"/);
+  assert.doesNotMatch(source, />当前记录</);
+  assert.doesNotMatch(source, />匹配率</);
 });
 
-test("dashboard surfaces local MVP status from the status API", () => {
+test("dashboard renders named rank types outside the toolbar", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /className="rank-type-module"/);
+  assert.match(source, /namedRankTypeOptions/);
+  assert.match(source, /漫剧热播榜/);
+  assert.match(source, /动态漫榜/);
+  assert.match(source, /沙雕漫榜/);
+  assert.match(source, /真人AI榜/);
+  assert.doesNotMatch(source, /<span>榜单类型<\/span>/);
+  assert.doesNotMatch(source, /rankType === "all" \? "全部榜单"/);
+  assert.doesNotMatch(source, /Array\.from\(\{ length: 21 \}/);
+  assert.doesNotMatch(source, /未命名榜单 rankType=\$\{value\}/);
+});
+
+test("dashboard hides source reference column from the table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  assert.doesNotMatch(source, />来源标识</);
+  assert.doesNotMatch(source, /className="source-ref-cell"/);
+  assert.doesNotMatch(css, /\.source-ref-cell/);
+});
+
+test("dashboard hides rank type column from the table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /aria-label="榜单类型"/);
+  assert.doesNotMatch(source, /<th>榜单类型<\/th>/);
+  assert.doesNotMatch(source, /item\.rankTypeName \|\| rankTypeLabels\[item\.rankType\]/);
+  assert.match(source, /colSpan="9"/);
+});
+
+test("dashboard uses table title area for period switching", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  assert.match(source, /className="period-switch"/);
+  assert.match(source, /aria-label="切换榜单周期"/);
+  assert.match(source, /rankPeriodOptions\.map/);
+  assert.doesNotMatch(source, /全部周期/);
+  assert.doesNotMatch(source, /<h2>\{date\} 榜单<\/h2>/);
+  assert.doesNotMatch(source, /<label>\s*周期\s*<select value=\{rankPeriod\}/);
+  assert.match(css, /\.period-switch/);
+});
+
+test("dashboard hides period column from the table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /aria-label="切换榜单周期"/);
+  assert.doesNotMatch(source, /<th>周期<\/th>/);
+  assert.doesNotMatch(source, /rankPeriodLabels\[item\.rankPeriod\] \|\| item\.rankPeriod/);
+  assert.match(source, /colSpan="9"/);
+});
+
+test("dashboard hides source column from the table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /<th>来源<\/th>/);
+  assert.doesNotMatch(source, /\{sourceLabels\[item\.source\]\}/);
+  assert.match(source, /colSpan="9"/);
+});
+
+test("dashboard hides date column from the table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /<th>日期<\/th>/);
+  assert.doesNotMatch(source, /<td>\{item\.rankingDate\}<\/td>/);
+  assert.match(source, /colSpan="9"/);
+});
+
+test("dashboard places data kind before collected time", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const novelHeaderIndex = source.indexOf("<th>对应小说名称</th>");
+  const dataKindHeaderIndex = source.indexOf("<th>数据性质</th>");
+  const collectedHeaderIndex = source.indexOf("<th>采集时间</th>");
+  const dataKindCellIndex = source.indexOf('className={`badge data-kind ${item.dataKind}`}');
+  const collectedCellIndex = source.indexOf("new Date(item.collectedAt)");
+
+  assert.ok(novelHeaderIndex < dataKindHeaderIndex);
+  assert.ok(dataKindHeaderIndex < collectedHeaderIndex);
+  assert.ok(dataKindCellIndex < collectedCellIndex);
+});
+
+test("dashboard uses local MVP status only for recovery guidance", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
   const api = fs.readFileSync(path.join(process.cwd(), "app/api/status/route.js"), "utf8");
-  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
 
   assert.match(page, /getMvpStatus\(\)/);
   assert.match(source, /initialMvpStatus/);
   assert.match(source, /fetch\("\/api\/status"\)/);
-  assert.match(source, /aria-label="MVP 状态"/);
-  assert.match(source, /DataEye live/);
-  assert.match(source, /最近预检/);
-  assert.match(source, /最近调度/);
-  assert.match(source, /mvpStatus\?\.dataeye\?\.latestDaily/);
-  assert.match(source, /最新抓包/);
+  assert.doesNotMatch(source, /aria-label="MVP 状态"/);
+  assert.doesNotMatch(source, /DataEye 类型\/周期/);
+  assert.doesNotMatch(source, /红果 live/);
   assert.match(source, /mvpStatus\?\.dataeye\?\.latestCapture/);
-  assert.match(source, /红果 live/);
+  assert.match(source, /mvpStatus\?\.dataeye\?\.latestPreview/);
   assert.match(api, /NextResponse\.json\(getMvpStatus\(\)\)/);
-  assert.match(css, /\.status-overview/);
 });
 
 test("dashboard shows DataEye preview recovery guidance when auth expires", () => {
