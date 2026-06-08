@@ -44,6 +44,26 @@ test("assessRankingReadiness detects rank title heat and type fields", () => {
   assert.equal(readiness.fields.dramaType.key, "contentTypes");
 });
 
+test("assessRankingReadiness prefers DataEye period play count add", () => {
+  const response = JSON.stringify({
+    content: [
+      {
+        ranking: 1,
+        playletName: "烬九州",
+        playCount: "3.8亿",
+        playCountAdd: "2.5亿",
+        tags: "[\"古代\"]"
+      }
+    ]
+  });
+
+  const readiness = assessRankingReadiness(response);
+
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.fields.heatValue.key, "playCountAdd");
+  assert.equal(readiness.fields.heatValue.sample, "2.5亿");
+});
+
 test("assessRankingReadiness reports missing fields", () => {
   const response = JSON.stringify({
     data: {

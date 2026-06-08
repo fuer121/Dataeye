@@ -77,6 +77,43 @@ test("collectDataEyeRanking maps verified motionComic rows", async () => {
   }
 });
 
+test("collectDataEyeRanking prefers period play count add for heat value", async () => {
+  const restore = installEnv({
+    DATAEYE_AUTHENTICATION: "auth-value",
+    DATAEYE_LOGIN_USER_ID: "650985"
+  });
+  const originalFetch = global.fetch;
+
+  global.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        statusCode: 200,
+        page: { pageId: 1, pageSize: 30, totalRecords: 1 },
+        content: [
+          {
+            ranking: 1,
+            playletName: "烬九州",
+            playCount: "3.8亿",
+            playCountAdd: "2.5亿",
+            tags: "[\"古代\"]"
+          }
+        ]
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+
+  try {
+    const rows = await collectDataEyeRanking({ rankingDate: "2026-06-07" });
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].title, "烬九州");
+    assert.equal(rows[0].heatValue, "2.5亿");
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
 test("collectDataEyeRanking allows rows with empty tag arrays", async () => {
   const restore = installEnv({
     DATAEYE_AUTHENTICATION: "auth-value",
