@@ -658,7 +658,7 @@ export default function DashboardClient({
                   <td>{item.periodValue}</td>
                   <td>{item.rank}</td>
                   <td className="strong-cell">{item.title}</td>
-                  <td>{item.heatValue}</td>
+                  <td>{formatHeatValue(item.heatValue, isNativeView)}</td>
                   <td>{item.dramaType}</td>
                   <td>
                     <span className={`badge ${item.matchStatus}`}>{item.matchStatus === "matched" ? "已匹配" : "未匹配"}</span>
@@ -733,4 +733,10 @@ function formatCollectError(payload, fallback) {
 function shouldDisplayRankingItem(item) {
   if (item?.source !== "dataeye") return true;
   return namedDataEyeRankTypes.has(Number(item?.rankType));
+}
+
+function formatHeatValue(value, isNativeView) {
+  if (!isNativeView) return value;
+  const number = Number(String(value ?? "").replaceAll(",", ""));
+  return Number.isFinite(number) ? String(Math.round(number)) : value;
 }

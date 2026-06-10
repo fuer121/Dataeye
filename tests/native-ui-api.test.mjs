@@ -24,6 +24,8 @@ test("native dashboard tab imports Excel without showing DataEye-only controls",
   assert.match(source, /isDataEyeView &&/);
   assert.match(source, /原生短剧/);
   assert.match(source, /<th>\{isNativeView \? "消耗" : "热度值"\}<\/th>/);
+  assert.match(source, /formatHeatValue\(item\.heatValue, isNativeView\)/);
+  assert.match(source, /Math\.round\(number\)/);
 });
 
 test("native import route and source filters are wired", () => {

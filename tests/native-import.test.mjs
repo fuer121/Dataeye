@@ -36,7 +36,7 @@ function writeNativeFiles(root, exportFolder = "0610") {
     ["短剧名称", "消耗"],
     ["(null)", 92901.22],
     ["老公为白月光点天灯后，后悔了", 11488.11],
-    ["隐龙傲世", 10071.38]
+    ["隐龙傲世", 10071.58]
   ]);
   writeNativeWorkbook(path.join(dir, "week.xlsx"), [
     ["短剧名称", "消耗"],
@@ -76,7 +76,8 @@ test("importNativeRankings imports day week month rows and skips null title rows
   assert.equal(dayRows.length, 2);
   assert.equal(dayRows[0].rank, 1);
   assert.equal(dayRows[0].title, "老公为白月光点天灯后，后悔了");
-  assert.equal(dayRows[0].heatValue, "11488.11");
+  assert.equal(dayRows[0].heatValue, "11488");
+  assert.equal(dayRows[1].heatValue, "10072");
   assert.equal(dayRows[0].dramaType, "未知");
   assert.equal(dayRows[0].dataKind, "live");
   assert.equal(dayRows[0].periodValue, "2026-06-09");
