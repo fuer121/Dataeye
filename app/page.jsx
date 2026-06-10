@@ -3,7 +3,7 @@ import { formatShanghaiDate, isValidDateString } from "@/lib/date";
 import { getMvpStatus } from "@/lib/mvp-status";
 import { getLatestRankingDate, listCollectionRuns, listRankingEntries } from "@/lib/rankings";
 
-const SOURCES = new Set(["all", "dataeye", "hongguo"]);
+const SOURCES = new Set(["dataeye", "native"]);
 const MATCH_STATUSES = new Set(["all", "matched", "unmatched"]);
 const DATA_KINDS = new Set(["all", "sample", "capture", "live"]);
 const RANK_TYPES = new Set(["all", ...Array.from({ length: 21 }, (_, index) => String(index))]);
@@ -13,7 +13,7 @@ export default async function HomePage({ searchParams }) {
   const params = (await searchParams) || {};
   const fallbackDate = getLatestRankingDate() || formatShanghaiDate(new Date());
   const initialDate = getValidDate(params.date) || fallbackDate;
-  const initialSource = getAllowed(params.source, SOURCES, "all");
+  const initialSource = getAllowed(params.source, SOURCES, "native");
   const initialMatch = getAllowed(params.match, MATCH_STATUSES, "all");
   const initialDataKind = getAllowed(params.dataKind, DATA_KINDS, "all");
   const initialRankType = getAllowed(params.rankType, RANK_TYPES, "all");

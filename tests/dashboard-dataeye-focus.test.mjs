@@ -6,7 +6,9 @@ import test from "node:test";
 test("dashboard collection actions stay focused on DataEye while Hongguo is paused", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
-  assert.match(source, /const activeSource = "dataeye";/);
+  assert.match(source, /const liveSource = "dataeye";/);
+  assert.match(source, /const captureSource = "dataeye";/);
+  assert.match(source, /isDataEyeView/);
   assert.doesNotMatch(source, /source === "hongguo" \? "hongguo" : "dataeye"/);
   assert.doesNotMatch(source, /collect\("sample", "all"\)/);
   assert.match(source, /红果（暂停推进）/);
