@@ -9,10 +9,15 @@ import StatusMessage from "@/components/StatusMessage";
 import { DATAEYE_VISIBLE_RANK_TYPE_OPTIONS } from "@/lib/dataeye-rankings";
 
 const sourceLabels = {
-  all: "全部来源",
   dataeye: "DataEye / 剧查查",
+  native: "站内原生短剧",
   hongguo: "红果（暂停推进）"
 };
+
+const sourceTabs = [
+  ["native", "站内原生短剧"],
+  ["dataeye", "DataEye / 剧查查"]
+];
 
 const matchLabels = {
   all: "全部",
@@ -53,7 +58,7 @@ const rankPeriodOptions = [
 
 export default function DashboardClient({
   initialDate,
-  initialSource = "all",
+  initialSource = "dataeye",
   initialMatch = "all",
   initialDataKind = "all",
   initialRankType = "all",
@@ -65,8 +70,9 @@ export default function DashboardClient({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const initialActiveSource = initialSource === "native" ? "native" : "dataeye";
   const [date, setDate] = useState(initialDate);
-  const [source, setSource] = useState(initialSource);
+  const [source, setSource] = useState(initialActiveSource);
   const [match, setMatch] = useState(initialMatch);
   const [dataKind, setDataKind] = useState(initialDataKind);
   const [rankType, setRankType] = useState(initialRankType);
@@ -109,6 +115,8 @@ export default function DashboardClient({
   const dataEyeLoginRefreshText = canRefreshDataEyeLogin
     ? "已检测到 fresh DataEye 抓包，可以刷新登录态并预检。"
     : latestPreview?.action || "请重新打开剧查查小程序并用 Charles 导出新 HAR，然后刷新本地登录态。";
+  const isNativeView = source === "native";
+  const isDataEyeView = source === "dataeye";
 
   const loadData = useCallback(async () => {
     const [rankingsResponse, runsResponse, statusResponse] = await Promise.all([
@@ -146,6 +154,17 @@ export default function DashboardClient({
   useEffect(() => {
     router.replace(`${pathname}?${query}`, { scroll: false });
   }, [pathname, query, router]);
+
+  function selectSourceTab(nextSource) {
+    setSource(nextSource);
+    setMatch("all");
+    setRankType("all");
+    setPeriodValue("");
+    setConfirmedLivePreviewKey("");
+    if (nextSource === "native") {
+      setDataKind("live");
+    }
+  }
 
   async function collect(mode = "sample", collectSource = source, scope = {}) {
     const targetRankType = scope.rankType || rankType;
@@ -202,9 +221,8 @@ export default function DashboardClient({
     }
   }
 
-  const activeSource = "dataeye";
-  const liveSource = activeSource;
-  const captureSource = activeSource;
+  const liveSource = "dataeye";
+  const captureSource = "dataeye";
   const currentLivePreviewKey = `${date}:${liveSource}:${rankType}:${rankPeriod}`;
   const fullLivePreviewKey = `${date}:${liveSource}:${fullDataEyeScope.rankType}:${fullDataEyeScope.period}`;
   const canCollectLive = confirmedLivePreviewKey === currentLivePreviewKey;
@@ -288,6 +306,38 @@ export default function DashboardClient({
       const payload = await response.json();
       await loadData();
       setMessage({ type: response.ok ? "success" : "error", text: payload.message || payload.error });
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function importNativeRankings() {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/native/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "站内原生短剧 Excel 导入失败");
+      }
+
+      setDate(payload.rankingDate || date);
+      setSource("native");
+      setDataKind("live");
+      setMatch("all");
+      setPeriodValue("");
+      await loadData();
+      setMessage({
+        type: "success",
+        text: `${payload.message} 数据日期 ${payload.rankingDate}，导出日期 ${payload.exportDate}。`
+      });
     } catch (error) {
       setMessage({ type: "error", text: error.message });
     } finally {
@@ -402,44 +452,53 @@ export default function DashboardClient({
           <p>按日期和来源查看短剧/漫剧榜单，并标注小说库精确匹配结果。</p>
         </div>
         <div className="header-actions">
-          <label className="secondary-button file-button">
-            上传抓包
-            <input
-              className="visually-hidden"
-              type="file"
-              accept=".har,.json,.txt,.curl"
-              disabled={loading}
-              onChange={uploadCaptureFile}
-            />
-          </label>
-          <button className="secondary-button" disabled={loading} onClick={runCapturePipeline}>
-            生成 DataEye 抓包报告
-          </button>
+          {isDataEyeView ? (
+            <>
+              <label className="secondary-button file-button">
+                上传抓包
+                <input
+                  className="visually-hidden"
+                  type="file"
+                  accept=".har,.json,.txt,.curl"
+                  disabled={loading}
+                  onChange={uploadCaptureFile}
+                />
+              </label>
+              <button className="secondary-button" disabled={loading} onClick={runCapturePipeline}>
+                生成 DataEye 抓包报告
+              </button>
+            </>
+          ) : null}
           <button className="secondary-button" disabled={loading} onClick={importNovels}>
             <Database size={16} />
             导入模拟小说库
           </button>
-          <button className="primary-button" disabled={loading} onClick={() => collect("sample", activeSource)}>
-            <Download size={16} />
-            采集 DataEye 模拟榜单
-          </button>
+          {isDataEyeView ? (
+            <button className="primary-button" disabled={loading} onClick={() => collect("sample", liveSource)}>
+              <Download size={16} />
+              采集 DataEye 模拟榜单
+            </button>
+          ) : null}
         </div>
       </header>
+
+      <section className="source-tabs" aria-label="榜单来源">
+        {sourceTabs.map(([value, label]) => (
+          <button
+            className={source === value ? "active" : ""}
+            key={value}
+            type="button"
+            onClick={() => selectSourceTab(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </section>
 
       <section className="toolbar" aria-label="榜单筛选">
         <label>
           日期
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        </label>
-        <label>
-          来源
-          <select value={source} onChange={(event) => setSource(event.target.value)}>
-            {Object.entries(sourceLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
         </label>
         <label>
           匹配状态
@@ -465,27 +524,38 @@ export default function DashboardClient({
           榜期
           <input value={periodValue} placeholder="全部榜期" onChange={(event) => setPeriodValue(event.target.value)} />
         </label>
-        <button className="secondary-button compact" disabled={loading} onClick={() => collect("sample", activeSource)}>
-          <RefreshCw size={16} />
-          采集 DataEye 模拟榜单
-        </button>
-        <button className="ghost-button compact" disabled={loading} onClick={importCaptureRanking}>
-          导入{sourceLabels[captureSource]}抓包榜单
-        </button>
-        <button className="ghost-button compact" disabled={loading} onClick={previewLiveCollection}>
-          预检当前筛选{sourceLabels[liveSource]}
-        </button>
-        <button
-          className="ghost-button compact"
-          disabled={loading || !canCollectLive}
-          title={canCollectLive ? "" : "先完成同一日期、同一来源的预检"}
-          onClick={() => collect("live", liveSource)}
-        >
-          采集当前筛选{sourceLabels[liveSource]}
-        </button>
-        <span className="live-gate-status">{liveGateText}</span>
+        {isNativeView ? (
+          <button className="primary-button compact" disabled={loading} onClick={importNativeRankings}>
+            <Download size={16} />
+            导入站内原生短剧 Excel
+          </button>
+        ) : null}
+        {isDataEyeView ? (
+          <>
+            <button className="secondary-button compact" disabled={loading} onClick={() => collect("sample", liveSource)}>
+              <RefreshCw size={16} />
+              采集 DataEye 模拟榜单
+            </button>
+            <button className="ghost-button compact" disabled={loading} onClick={importCaptureRanking}>
+              导入{sourceLabels[captureSource]}抓包榜单
+            </button>
+            <button className="ghost-button compact" disabled={loading} onClick={previewLiveCollection}>
+              预检当前筛选{sourceLabels[liveSource]}
+            </button>
+            <button
+              className="ghost-button compact"
+              disabled={loading || !canCollectLive}
+              title={canCollectLive ? "" : "先完成同一日期、同一来源的预检"}
+              onClick={() => collect("live", liveSource)}
+            >
+              采集当前筛选{sourceLabels[liveSource]}
+            </button>
+            <span className="live-gate-status">{liveGateText}</span>
+          </>
+        ) : null}
       </section>
 
+      {isDataEyeView ? (
       <section className="status-action collection-action-panel" aria-label="DataEye 全量采集">
         <strong>全量 DataEye 真实采集</strong>
         <span>固定按全部可采榜单类型和日榜/周榜/月榜执行，不受当前页面筛选影响。</span>
@@ -504,10 +574,11 @@ export default function DashboardClient({
           <span className="live-gate-status">{fullLiveGateText}</span>
         </div>
       </section>
+      ) : null}
 
       <StatusMessage message={message} />
 
-      {shouldShowDataEyeLoginRefresh ? (
+      {isDataEyeView && shouldShowDataEyeLoginRefresh ? (
         <section className="status-action" aria-label="DataEye 登录态恢复">
           <strong>重新抓包并刷新 DataEye 登录态</strong>
           <span>{dataEyeLoginRefreshText}</span>
@@ -520,6 +591,7 @@ export default function DashboardClient({
         </section>
       ) : null}
 
+      {isDataEyeView ? (
       <section className="rank-type-module" aria-label="榜单类型">
         <div className="rank-type-tabs" role="tablist" aria-label="切换榜单类型">
           <button
@@ -545,6 +617,7 @@ export default function DashboardClient({
           ))}
         </div>
       </section>
+      ) : null}
 
       <section className="table-panel">
         <div className="panel-title">
@@ -571,7 +644,7 @@ export default function DashboardClient({
                 <th>榜期</th>
                 <th>排名</th>
                 <th>短剧/漫剧名称</th>
-                <th>热度值</th>
+                <th>{isNativeView ? "消耗" : "热度值"}</th>
                 <th>类型</th>
                 <th>是否匹配小说</th>
                 <th>对应小说名称</th>

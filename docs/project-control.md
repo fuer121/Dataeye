@@ -10,10 +10,10 @@
 | --- | --- |
 | 项目 | 短剧/漫剧榜单采集 MVP |
 | 技术栈 | Next.js + SQLite + better-sqlite3 |
-| 当前阶段 | 已完成 MVP，进入 DataEye 真实采集与展示优化阶段 |
-| 当前主数据源 | DataEye / 剧查查 |
+| 当前阶段 | 已完成 MVP，进入多来源榜单展示与原生短剧导入扩展阶段 |
+| 当前主数据源 | DataEye / 剧查查、站内原生短剧 |
 | 暂停范围 | 红果真实采集暂不推进 |
-| 已验证能力 | DataEye motionComic 接口抓包、登录态预检、live 落库、rankType 维度、day/week/month 周期维度、小说精确匹配展示 |
+| 已验证能力 | DataEye motionComic 接口抓包、登录态预检、live 落库、rankType 维度、day/week/month 周期维度、站内原生短剧 Excel 导入、小说精确匹配展示 |
 | 运行边界 | 不绕过风控；登录态只从本地环境变量或本地配置读取；抓包数据不冒充 live 数据 |
 | 本地服务 | `screen` 会话 `dataeye-goal-dev` 承载 `npm run dev -- --hostname 0.0.0.0`；局域网优先访问 `http://qimaodeMacBook-Air.local:3000` |
 
@@ -29,6 +29,8 @@
 | 2026-06-10 | `原生短剧数据/` 作为本地原始 Excel 输入目录，不进入 Git | 目录下有 `0610/day.xlsx`、`week.xlsx`、`month.xlsx`，属于数据材料而非代码 | 已加入 `.gitignore`，后续如需接入先开独立评估任务 |
 | 2026-06-10 | 本地预览服务使用 `screen` 独立会话承载 | 普通对话会话进程会随工具会话结束而中断 | 通过 `screen -S dataeye-goal-dev -X quit` 停止服务 |
 | 2026-06-10 | `codex/info-get` 已推送到远端 | 主控基线提交需要进入协作可见状态 | 后续可基于该分支创建 PR |
+| 2026-06-10 | 从最新 `origin/main` 创建 `codex/native-info` 推进站内原生短剧接入 | `codex/info-get` 已合并，原生短剧是新的独立功能边界 | 本轮只改 native 来源、Excel 导入、顶层来源 Tab，不恢复红果 live |
+| 2026-06-10 | 站内原生短剧使用 `source=native`、`dataKind=live`、Excel 导出日期 T-1 作为数据日期 | `原生短剧数据/0610` 的真实数据日期为 `2026-06-09` | `day.xlsx/week.xlsx/month.xlsx` 入库为 `day/week/month`，榜期值均为数据日期 |
 
 ## 任务看板
 
@@ -41,6 +43,7 @@
 | T-005 | 总控状态校准与本地原始数据边界登记 | 完成 | 总控 Agent | 当前仓库、服务状态、Git 状态 | `.gitignore`、`docs/project-control.md` | 服务可访问；原始 Excel 数据不进 Git；文档与 Git 边界一致 |
 | T-006 | 评估 `原生短剧数据/0610` Excel 是否接入 MVP | 待启动 | 分析型 Agent | T-005、用户确认接入目标 | 字段识别、数据口径、是否入库建议 | 明确 day/week/month 三个 xlsx 的字段、去重口径、与现有 DataEye live 数据关系 |
 | T-007 | 推送 `codex/info-get` 到远端 | 完成 | 总控 Agent | T-001 至 T-005 | 远端分支 `origin/codex/info-get` | 本地分支已跟踪远端，GitHub 可创建 PR |
+| T-008 | 接入站内原生短剧 Excel 并新增顶层来源 Tab | 完成 | 实现型 Agent | 最新 `origin/main`、`原生短剧数据/0610`、小说库匹配能力 | `source=native` 数据模型、`native:import` CLI、`POST /api/native/import`、前端来源 Tab | `npm test`、`npm run lint`、`npm run build` 通过；`0610` 成功导入为 `2026-06-09` |
 
 ## 线程索引
 
@@ -49,20 +52,20 @@
 | 主控线程 | 维护项目状态、分支、文档、风险和任务边界 | 进行中 | 当前仓库、Git、运行报告、用户决策 | 每轮结束时状态、下一步、Git 建议清楚 |
 | DataEye 全量采集线程 | 验证 rankType 全部已知/可探测榜单与 day/week/month 周期 | 待启动 | `.env.local.dataeye`、`npm run dataeye:daily`、SQLite | 输出采集报告、失败组合、抽检结论 |
 | 登录态稳定性线程 | 验证抓包刷新登录态和日常调度是否可靠 | 待启动 | Proxyman/Charles 抓包材料、capture scripts | 给出可稳定执行路径或阻塞原因 |
-| 原生 Excel 数据评估线程 | 判断 `原生短剧数据/0610` 是否需要入库或仅做对照材料 | 待启动 | `day.xlsx`、`week.xlsx`、`month.xlsx` | 输出字段映射、风险和接入建议 |
+| 原生 Excel 数据接入线程 | 将 `原生短剧数据/0610` 作为站内原生短剧来源入库并展示 | 完成 | `day.xlsx`、`week.xlsx`、`month.xlsx` | CLI/API/UI 可导入并展示，小说匹配复用现有精确匹配 |
 
 ## Git 记录
 
 | 项 | 状态 |
 | --- | --- |
-| 当前工作分支 | `codex/info-get` |
-| 上游 | `origin/codex/info-get` |
-| 分支来源 | `origin/main` commit `67a6031` |
-| 远端状态 | 已推送，PR 创建地址 `https://github.com/fuer121/Dataeye/pull/new/codex/info-get` |
-| 最近已合并功能 | PR #3：DataEye 多榜单 + 多周期采集扩展 |
-| 最近主控提交 | T-007：推送 `codex/info-get` 到远端 |
-| 当前未提交变更 | 无 |
-| 暂存说明 | 切分支前将 `docs/dataeye-login-refresh.md` 和 `docs/live-collection-preview.md` 的本地运行报告改动暂存到 git stash，避免串入新分支 |
+| 当前工作分支 | `codex/native-info` |
+| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/native-info` |
+| 分支来源 | `origin/main` commit `56fbddb` |
+| 远端状态 | 本轮功能分支：`codex/native-info` |
+| 最近已合并功能 | PR #4：项目总控基线与 capture 目录治理 |
+| 最近主控提交 | T-008：站内原生短剧 Tab 与 Excel 导入 |
+| 当前未提交变更 | 本轮提交范围限定为 T-008；运行报告与 Excel 不提交 |
+| 暂存说明 | `docs/dataeye-login-refresh.md` 和 `docs/live-collection-preview.md` 属运行报告，已排除本次提交 |
 
 ## 风险与阻塞清单
 
@@ -73,12 +76,13 @@
 | 生成报告文档容易成为脏工作区 | 中 | `docs/*preview*`、`docs/*refresh*` 会随运行更新 | 运行报告默认不随代码提交，提交前单独判断 |
 | 抓包材料散装导致误选旧 HAR | 中 | 根目录已有多批 Charles/Proxyman/cURL 混放 | 后续按 `captures/dataeye/<date>/<period>/` 归档，脚本递归读取 |
 | 原始 Excel 数据误提交 | 中 | `原生短剧数据/0610` 存在 day/week/month xlsx | 作为本地输入材料忽略，接入前先做字段评估 |
+| 原生 Excel 重复剧名导致跳过 | 中 | `0610` 有 998 条有效行，SQLite 新增 994 条、跳过 4 条同周期同名数据 | 维持现有唯一约束，后续如要保留同名多条需新增站内唯一 ID 字段 |
 | README 或历史报告口径滞后 | 中 | README 曾保留 rankType 2/3 旧映射 | 代码源以 `lib/dataeye-rankings.js` 为准，主控文档登记同步要求 |
 | 未命名 rankType 被误认为已确认榜单 | 中 | 探测会入库 `rankType=4..20` | 前端只展示已命名榜单，报告保留未命名提示 |
 | 红果真实采集误启动 | 中 | 红果接口未验证 | 页面和脚本维持暂停，不进入 live |
 
 ## 下一步行动
 
-1. 决定是否创建 `codex/info-get` PR。
-2. 解除 T-003 阻塞：将 fresh DataEye `motionComic` HAR/cURL 放入 `captures/dataeye/<date>/<period>/`，或直接更新 `.env.local.dataeye`。
-3. 如要使用 `原生短剧数据/0610`，先启动 T-006 做字段评估，不直接入库。
+1. 基于 `codex/native-info` 创建 PR 进行审查。
+2. 通过局域网页面继续人工验收 `站内原生短剧` 与 `DataEye / 剧查查` 顶层 Tab。
+3. 解除 T-003 阻塞：将 fresh DataEye `motionComic` HAR/cURL 放入 `captures/dataeye/<date>/<period>/`，或直接更新 `.env.local.dataeye`。

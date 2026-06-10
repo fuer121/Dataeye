@@ -24,6 +24,7 @@
     "dataeye:renewal-probe": "node scripts/dataeye-renewal-probe.js",
     "dataeye:refresh-login": "node scripts/refresh-dataeye-login.js",
     "mvp:status": "node scripts/check-mvp-status.js",
+    "native:import": "node scripts/import-native-rankings.js",
     "collect:preview": "node scripts/live-collection-preview.js",
     "collect:live": "node scripts/collect-live.js",
     "novels:import": "node scripts/import-novel-mappings.js",
@@ -34,7 +35,8 @@
     "lucide-react": "^0.468.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

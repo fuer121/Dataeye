@@ -237,6 +237,35 @@ button:disabled {
   gap: 10px;
 }
 
+.source-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.source-tabs button {
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.source-tabs button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .collection-action-panel {
   margin: 0 0 16px;
   border-color: var(--line);
