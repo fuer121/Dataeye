@@ -58,7 +58,7 @@ const rankPeriodOptions = [
 
 export default function DashboardClient({
   initialDate,
-  initialSource = "dataeye",
+  initialSource = "native",
   initialMatch = "all",
   initialDataKind = "all",
   initialRankType = "all",
@@ -70,7 +70,7 @@ export default function DashboardClient({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const initialActiveSource = initialSource === "native" ? "native" : "dataeye";
+  const initialActiveSource = initialSource === "dataeye" ? "dataeye" : "native";
   const [date, setDate] = useState(initialDate);
   const [source, setSource] = useState(initialActiveSource);
   const [match, setMatch] = useState(initialMatch);

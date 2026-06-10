@@ -13,6 +13,15 @@ test("dashboard exposes source tabs for native and DataEye views", () => {
   assert.match(source, /source === "dataeye"/);
 });
 
+test("dashboard defaults to the native source tab", () => {
+  const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(page, /getAllowed\(params\.source, SOURCES, "native"\)/);
+  assert.match(source, /initialSource = "native"/);
+  assert.match(source, /initialSource === "dataeye" \? "dataeye" : "native"/);
+});
+
 test("native dashboard tab imports Excel without showing DataEye-only controls", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 

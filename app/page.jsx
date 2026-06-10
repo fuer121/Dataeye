@@ -13,7 +13,7 @@ export default async function HomePage({ searchParams }) {
   const params = (await searchParams) || {};
   const fallbackDate = getLatestRankingDate() || formatShanghaiDate(new Date());
   const initialDate = getValidDate(params.date) || fallbackDate;
-  const initialSource = getAllowed(params.source, SOURCES, "dataeye");
+  const initialSource = getAllowed(params.source, SOURCES, "native");
   const initialMatch = getAllowed(params.match, MATCH_STATUSES, "all");
   const initialDataKind = getAllowed(params.dataKind, DATA_KINDS, "all");
   const initialRankType = getAllowed(params.rankType, RANK_TYPES, "all");
