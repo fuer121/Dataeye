@@ -28,6 +28,7 @@
 | 2026-06-08 | `captures/` 后续允许按来源、日期和周期分目录归档 | 根目录散装 HAR 不利于长期维护 | 抓包读取工具支持递归扫描，整理规范见 `docs/capture-organization.md` |
 | 2026-06-10 | `原生短剧数据/` 作为本地原始 Excel 输入目录，不进入 Git | 目录下有 `0610/day.xlsx`、`week.xlsx`、`month.xlsx`，属于数据材料而非代码 | 已加入 `.gitignore`，后续如需接入先开独立评估任务 |
 | 2026-06-10 | 本地预览服务使用 `screen` 独立会话承载 | 普通对话会话进程会随工具会话结束而中断 | 通过 `screen -S dataeye-goal-dev -X quit` 停止服务 |
+| 2026-06-10 | `codex/info-get` 已推送到远端 | 主控基线提交需要进入协作可见状态 | 后续可基于该分支创建 PR |
 
 ## 任务看板
 
@@ -39,6 +40,7 @@
 | T-004 | 登录态续期与调度稳定性复核 | 待启动 | 排查型 Agent | T-003 | 续期流程风险清单 | 过期、缺字段、fresh HAR 更新路径均有明确提示 |
 | T-005 | 总控状态校准与本地原始数据边界登记 | 完成 | 总控 Agent | 当前仓库、服务状态、Git 状态 | `.gitignore`、`docs/project-control.md` | 服务可访问；原始 Excel 数据不进 Git；文档与 Git 边界一致 |
 | T-006 | 评估 `原生短剧数据/0610` Excel 是否接入 MVP | 待启动 | 分析型 Agent | T-005、用户确认接入目标 | 字段识别、数据口径、是否入库建议 | 明确 day/week/month 三个 xlsx 的字段、去重口径、与现有 DataEye live 数据关系 |
+| T-007 | 推送 `codex/info-get` 到远端 | 完成 | 总控 Agent | T-001 至 T-005 | 远端分支 `origin/codex/info-get` | 本地分支已跟踪远端，GitHub 可创建 PR |
 
 ## 线程索引
 
@@ -54,10 +56,11 @@
 | 项 | 状态 |
 | --- | --- |
 | 当前工作分支 | `codex/info-get` |
-| 上游 | `origin/main` |
+| 上游 | `origin/codex/info-get` |
 | 分支来源 | `origin/main` commit `67a6031` |
+| 远端状态 | 已推送，PR 创建地址 `https://github.com/fuer121/Dataeye/pull/new/codex/info-get` |
 | 最近已合并功能 | PR #3：DataEye 多榜单 + 多周期采集扩展 |
-| 最近主控提交 | T-005：总控状态校准与本地原始数据边界登记 |
+| 最近主控提交 | T-007：推送 `codex/info-get` 到远端 |
 | 当前未提交变更 | 无 |
 | 暂存说明 | 切分支前将 `docs/dataeye-login-refresh.md` 和 `docs/live-collection-preview.md` 的本地运行报告改动暂存到 git stash，避免串入新分支 |
 
@@ -76,6 +79,6 @@
 
 ## 下一步行动
 
-1. 推送 `codex/info-get`，让 T-001/T-002/T-003/T-005 的主控提交进入远端。
+1. 决定是否创建 `codex/info-get` PR。
 2. 解除 T-003 阻塞：将 fresh DataEye `motionComic` HAR/cURL 放入 `captures/dataeye/<date>/<period>/`，或直接更新 `.env.local.dataeye`。
 3. 如要使用 `原生短剧数据/0610`，先启动 T-006 做字段评估，不直接入库。
