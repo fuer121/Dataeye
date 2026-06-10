@@ -5,6 +5,7 @@ data/*.sqlite
 data/*.sqlite-*
 captures/*
 !captures/.gitkeep
+原生短剧数据/
 .env
 .env.local
 .env.local.*
