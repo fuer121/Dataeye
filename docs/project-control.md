@@ -31,6 +31,7 @@
 | 2026-06-10 | `codex/info-get` 已推送到远端 | 主控基线提交需要进入协作可见状态 | 后续可基于该分支创建 PR |
 | 2026-06-10 | 从最新 `origin/main` 创建 `codex/native-info` 推进站内原生短剧接入 | `codex/info-get` 已合并，原生短剧是新的独立功能边界 | 本轮只改 native 来源、Excel 导入、顶层来源 Tab，不恢复红果 live |
 | 2026-06-10 | 站内原生短剧使用 `source=native`、`dataKind=live`、Excel 导出日期 T-1 作为数据日期 | `原生短剧数据/0610` 的真实数据日期为 `2026-06-09` | `day.xlsx/week.xlsx/month.xlsx` 入库为 `day/week/month`，榜期值均为数据日期 |
+| 2026-06-10 | 总控职责固化为每次请求必读文件 | 后续项目进入优化阶段，需要让总控职责、真实信源读取顺序和 Git 边界可继承 | 新增 `docs/controller-responsibilities.md` 和根目录 `AGENTS.md`；每次请求先读职责文件和 `docs/project-control.md` |
 
 ## 任务看板
 
@@ -44,6 +45,7 @@
 | T-006 | 评估 `原生短剧数据/0610` Excel 是否接入 MVP | 待启动 | 分析型 Agent | T-005、用户确认接入目标 | 字段识别、数据口径、是否入库建议 | 明确 day/week/month 三个 xlsx 的字段、去重口径、与现有 DataEye live 数据关系 |
 | T-007 | 推送 `codex/info-get` 到远端 | 完成 | 总控 Agent | T-001 至 T-005 | 远端分支 `origin/codex/info-get` | 本地分支已跟踪远端，GitHub 可创建 PR |
 | T-008 | 接入站内原生短剧 Excel 并新增顶层来源 Tab | 完成 | 实现型 Agent | 最新 `origin/main`、`原生短剧数据/0610`、小说库匹配能力 | `source=native` 数据模型、`native:import` CLI、`POST /api/native/import`、前端来源 Tab | `npm test`、`npm run lint`、`npm run build` 通过；`0610` 成功导入为 `2026-06-09` |
+| T-009 | 固化项目总控职责为必读文件 | 完成 | 总控 Agent | 用户总控职责要求、`docs/project-control.md` | `docs/controller-responsibilities.md`、`AGENTS.md`、主控文档决策记录 | 后续请求有明确必读文件和读取顺序；Git 忽略边界写入入口说明 |
 
 ## 线程索引
 
@@ -61,10 +63,10 @@
 | 当前工作分支 | `codex/native-info` |
 | 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/native-info` |
 | 分支来源 | `origin/main` commit `56fbddb` |
-| 远端状态 | 本轮功能分支：`codex/native-info` |
+| 远端状态 | Draft PR #5：`codex/native-info` -> `main` |
 | 最近已合并功能 | PR #4：项目总控基线与 capture 目录治理 |
-| 最近主控提交 | T-008：站内原生短剧 Tab 与 Excel 导入 |
-| 当前未提交变更 | 本轮提交范围限定为 T-008；运行报告与 Excel 不提交 |
+| 最近主控提交 | T-009：固化总控职责必读文件 |
+| 当前未提交变更 | 无；`Dify-flow/` 是本地未跟踪目录，不属于本轮提交 |
 | 暂存说明 | `docs/dataeye-login-refresh.md` 和 `docs/live-collection-preview.md` 属运行报告，已排除本次提交 |
 
 ## 风险与阻塞清单
