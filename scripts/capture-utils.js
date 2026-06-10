@@ -27,14 +27,30 @@ export function ensureDirs() {
   fs.mkdirSync(DOCS_DIR, { recursive: true });
 }
 
-export function listCaptureFiles() {
+export function listCaptureFiles(capturesDir = CAPTURES_DIR) {
   ensureDirs();
-  return fs
-    .readdirSync(CAPTURES_DIR)
-    .filter(isCaptureFileName)
-    .map((name) => path.join(CAPTURES_DIR, name))
-    .filter((filePath) => fs.statSync(filePath).isFile())
-    .sort();
+  return collectCaptureFiles(capturesDir).sort();
+}
+
+export function collectCaptureFiles(dirPath) {
+  if (!fs.existsSync(dirPath)) return [];
+
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectCaptureFiles(entryPath));
+      continue;
+    }
+
+    if (entry.isFile() && isCaptureFileName(entry.name)) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
 }
 
 export function isCaptureFileName(name) {
