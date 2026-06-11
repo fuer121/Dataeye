@@ -6,9 +6,10 @@ export const dynamic = "force-dynamic";
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query") || "";
+  const match = searchParams.get("match") || "all";
   return NextResponse.json({
     items: listNovelMappings(query),
-    novels: listNovels(query)
+    novels: listNovels(query, { match })
   });
 }
 

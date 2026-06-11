@@ -36,7 +36,7 @@ SQLITE_PATH=./data/local.sqlite npm run dev
 
 ## 页面
 
-- `/`：榜单数据页，默认展示本地已有的最新榜单日期，支持日期、来源、匹配状态、数据性质、榜单类型、周期和榜期筛选，展示来源标识、数据性质、榜单类型、周期和榜期，也支持手动触发采集。数据性质包括模拟、抓包导入和真实 live。登录态过期或最新 DataEye 抓包为 fresh 时，页面会显示 `刷新登录态并预检` 操作入口；它只刷新本地 `.env.local.dataeye` 并执行预检，不会自动落库。
+- `/`：榜单数据页，默认展示本地已有的最新榜单日期。DataEye Tab 支持日期、匹配状态、数据性质、榜单类型和周期筛选；站内原生短剧 Tab 使用榜期筛选。数据性质包括模拟、抓包导入和真实 live。登录态过期或最新 DataEye 抓包为 fresh 时，页面会显示 `刷新登录态并预检` 操作入口；它只刷新本地 `.env.local.dataeye` 并执行预检，不会自动落库。
 - `/novels`：小说库页面，支持上传本地 Excel/CSV/JSON 小说主库，也支持单独上传映射 Excel，展示小说主库表格，并在同一页面按小说维护对应短剧/漫剧映射。
 
 可以用查询参数直接打开某个筛选视图，例如查看已落库的 DataEye 真实榜单：
@@ -70,9 +70,8 @@ curl http://localhost:3000/api/status
 
 - 小说库页的 `导入 Excel/CSV`
 - 小说库页的 `导入映射 Excel`
-- `采集 DataEye 模拟榜单`
+- 站内原生短剧 Tab 的 `导入站内原生短剧 Excel`
 - `导入抓包榜单`
-- `上传抓包`
 
 也可以直接请求 API：
 
@@ -84,6 +83,28 @@ curl -X POST http://localhost:3000/api/novels/import/mappings \
 curl -X POST http://localhost:3000/api/collect \
   -H 'Content-Type: application/json' \
   -d '{"date":"2026-06-05","source":"all","mode":"sample"}'
+```
+
+站内原生短剧 Excel 默认从以下目录查找：
+
+```text
+./原生短剧数据/<导出日期>/day.xlsx
+./原生短剧数据/<导出日期>/week.xlsx
+./原生短剧数据/<导出日期>/month.xlsx
+./captures/原生短剧数据/<导出日期>/day.xlsx
+./captures/原生短剧数据/<导出日期>/week.xlsx
+./captures/原生短剧数据/<导出日期>/month.xlsx
+```
+
+导出日期目录支持 `0611`、`20260611` 或 `2026-06-11`。导入时按导出日期 T-1 作为真实数据日期，例如 `captures/原生短剧数据/0611` 会入库为 `2026-06-10`。如果页面当前日期没有对应的 T+1 导出目录，系统会回退到上述目录中最新且同时包含 `day.xlsx`、`week.xlsx`、`month.xlsx` 的完整导出目录，避免因为页面停留在 DataEye 日期而误报缺文件。
+
+站内原生短剧 Tab 顶部主筛选项是 `榜期`，按入库的 `periodValue` 查询。页面会默认使用站内原生短剧已有的最新榜期；例如 `0611` 导出目录导入后，页面榜期为 `2026-06-10`。
+
+也可以命令行导入：
+
+```bash
+npm run native:import -- --date 2026-06-10
+npm run native:import -- --export-date 0611 --base-dir captures/原生短剧数据
 ```
 
 当前真实采集只启用 DataEye / 剧查查，落库请求必须明确指定 `source=dataeye`，避免和未验证的红果采集混跑：
@@ -112,17 +133,18 @@ curl -X POST http://localhost:3000/api/collect \
   -d '{"date":"2026-06-06","source":"dataeye","mode":"live","confirmedPreview":true,"rankType":"all","period":"all"}'
 ```
 
-页面上的 `预检当前筛选 DataEye / 剧查查` 和 `采集当前筛选 DataEye / 剧查查` 会按当前榜单 tab 和周期 tab 执行 live 预检与落库流程；新增的 `一键全量预检 DataEye` 和 `一键全量真实采集 DataEye` 会固定执行 `rankType=all + period=all`。`collect:preview` 和 `collect:live` 仍兼容旧用法，默认只采 `rankType=0 + day`；`dataeye:daily` 默认升级为 `rankType=all + period=all`。当前页面操作按钮固定指向 DataEye；红果只保留为历史/模拟数据筛选和后续抓包分析入口，不推进真实采集。
+页面不展示当前筛选预检入口；需要预检时使用 CLI/API。固定全量采集入口不在页面展示，仍可通过 CLI/API 执行 `rankType=all + period=all`；`rankType=all` 当前只覆盖已重新抓包确认的 4 个每日目标榜单。`collect:preview` 和 `collect:live` 仍兼容旧用法，默认只采历史 `rankType=0 + day`；`dataeye:daily` 默认执行新的 `rankType=all + period=all`。当前页面操作按钮固定指向 DataEye；红果只保留为历史/模拟数据筛选和后续抓包分析入口，不推进单独红果 live。
 
-DataEye 已知榜单类型：
+DataEye 当前采集榜单类型：
 
 | rankType | 中文名 |
 | ---: | --- |
-| 0 | 漫剧热播榜 |
-| 1 | 动态漫榜 |
-| 2 | 真人AI榜 |
-| 3 | 沙雕漫榜 |
-| 4..20 | 如接口返回可映射数组，会以 `未命名榜单 rankType=N` 入库，需后续补中文名 |
+| 119 | 红果漫剧榜 |
+| 101 | 热力榜 |
+| 103 | 抖音热播 |
+| 106 | 红果榜 |
+
+历史 `motionComic` 榜单 `rankType=0..3` 仍可显式指定采集，用于兼容已有数据和旧抓包材料；默认全量不再采 `漫剧热播榜、动态漫榜、真人AI榜、沙雕漫榜`。
 
 DataEye 周期参数：
 
@@ -162,16 +184,18 @@ HONGGUO_AUTHORIZATION=
 HONGGUO_TOKEN=
 ```
 
-当前剧查查 live 采集器已接入并验证微信小程序接口：
+当前剧查查 live 采集器已接入并验证微信小程序接口。新的 4 个日常目标榜单使用以下接口：
 
 ```text
-GET https://playlet-applet.dataeye.com/playlet/motionComic?pageId=1&pageSize=30&day=<日期>&rankType=0
-GET https://playlet-applet.dataeye.com/playlet/motionComicDate?rankType=<rankType>
-GET https://playlet-applet.dataeye.com/playlet/motionComic?pageId=1&pageSize=30&week=<周榜期>&rankType=<rankType>
-GET https://playlet-applet.dataeye.com/playlet/motionComic?pageId=1&pageSize=30&month=<月榜期>&rankType=<rankType>
+GET https://playlet-applet.dataeye.com/playlet/getComicsPlayletByDate?pageId=1&pageSize=30&type=1&day=<日期>
+GET https://playlet-applet.dataeye.com/playlet/listHotRanking?pageId=1&pageSize=30&day=<T-1日期>
+GET https://playlet-applet.dataeye.com/playlet/selectNativePlayletPlayCountListByDate?pageId=1&pageSize=30&day=<日期>
+GET https://playlet-applet.dataeye.com/playlet/listHongGuoRanking?pageId=1&pageSize=30&day=<日期>
 ```
 
-它对应「剧查查小程序 > 榜单 > 漫剧榜单」系列页面。请求登录态必须从环境变量读取，其中 `DATAEYE_AUTHENTICATION` 和 `DATAEYE_LOGIN_USER_ID` 为必填，`DATAEYE_S`、`DATAEYE_REFERER`、`DATAEYE_USER_AGENT`、Cookie、Authorization、Token 按抓包材料可选补充。页面 API 会读取 `.env.local` 和 `.env.local.dataeye`；CLI 可通过 `--login-env-file .env.local.dataeye` 显式指定。登录态缺失、过期或接口返回结构异常时，会返回明确失败原因，不会尝试绕过风控，也不会落入模拟数据冒充真实数据。
+其中 `listHotRanking` 日榜请求参数来自抓包信息，按采集日期 T-1 请求；周榜和月榜使用 `week=<上一个完整周榜期>`、`month=<上一个月>`。`getComicsPlayletByDate` 当前只确认支持日榜。请求登录态必须从环境变量读取，其中 `DATAEYE_AUTHENTICATION` 和 `DATAEYE_LOGIN_USER_ID` 为必填，`DATAEYE_S`、`DATAEYE_REFERER`、`DATAEYE_USER_AGENT`、Cookie、Authorization、Token 按抓包材料可选补充。页面 API 会读取 `.env.local` 和 `.env.local.dataeye`；CLI 可通过 `--login-env-file .env.local.dataeye` 显式指定。登录态缺失、过期或接口返回结构异常时，会返回明确失败原因，不会尝试绕过风控，也不会落入模拟数据冒充真实数据。
+
+DataEye 页面日期和榜期是两个字段：`rankingDate` 用于页面日期筛选，保持本次采集日期；`periodValue` 用于展示真实日榜/周榜/月榜榜期。页面不再提供 DataEye 榜期文本筛选入口，但表格仍展示榜期，URL/API 仍保留 `periodValue` 查询能力。例如 `2026-06-11` 采集的热力榜日榜请求参数是 `day=2026-06-10`，入库时 `rankingDate=2026-06-11`、`periodValue=2026-06-10`。
 
 当前本机已落库可查看的 DataEye live 样例是 `2026-06-06`。最近一次使用现有 HAR 登录态重新预检 `2026-06-06` 时返回 `DATAEYE_AUTH_EXPIRED` / `登录态已失效，请重新登录`，说明需要重新打开剧查查小程序、用 Charles/Proxyman 导出新 HAR，并更新 `.env.local.dataeye` 后再采集新日期。
 
@@ -201,9 +225,7 @@ npm run capture:preflight
 npm run capture:pipeline
 ```
 
-也可以在首页点击 `上传抓包`，直接把 Charles/Proxyman 导出的 `.har`、`.json`、`.txt` 或 `.curl` 文件保存到本地 `captures/`。上传成功后会自动生成 DataEye 抓包报告，上传 API 也会返回 pipeline 摘要；页面会重新读取最新 DataEye 抓包材料，再根据新鲜度决定是否允许刷新登录态。
-
-上传后可继续点击 `生成 DataEye 抓包报告`，它等价于从页面触发 `npm run capture:pipeline -- --source dataeye --login-env-file .env.local.dataeye`。这个按钮只生成抓包分析、验证、预览和接口规格报告，不会刷新登录态，也不会执行 `collect:live` 落库。
+页面不展示 `上传抓包` 和 `生成 DataEye 抓包报告` 页头入口；如需保存 Charles/Proxyman 导出的 `.har`、`.json`、`.txt` 或 `.curl` 文件，可继续通过 `/api/captures/upload` API 或直接放入 `captures/` 后运行 `npm run capture:pipeline -- --source dataeye --login-env-file .env.local.dataeye`。抓包报告流程只生成分析、验证、预览和接口规格报告，不会刷新登录态，也不会执行 `collect:live` 落库。
 
 也可以从抓包目标请求生成 `.env.local` 填写清单，敏感值只输出掩码：
 
@@ -333,7 +355,7 @@ npm run capture:watch -- --source dataeye --login-env-file .env.local.dataeye --
 npm run capture:import -- --date 2026-06-05 --source dataeye
 ```
 
-页面上也可以点击 `导入 DataEye / 剧查查抓包榜单` 执行同样的导入。导入后数据性质会显示为 `抓包导入`，与 `真实 live` 分开筛选。后续 live HTTP 复现仍必须先通过 `npm run capture:validate` 或 `npm run collect:preview`。
+页面不再展示抓包导入入口，避免与真实采集流程混淆。如需导入抓包中的响应数据，只使用上面的 CLI。导入后数据性质会显示为 `抓包导入`，与 `真实 live` 分开筛选。后续 live HTTP 复现仍必须先通过 `npm run capture:validate` 或 `npm run collect:preview`。
 
 抓包验证通过后，也可单独生成采集器开发用的 API 规格草稿：
 
@@ -372,14 +394,11 @@ https://x0sgcptncj.feishu.cn/wiki/Cm9QwkKCsi7kSvk8ApFcMRY4nHc?from=from_copylink
 - 平台ID
 - 书库ID
 - 小说名称
-- 作者
-- 分类
-- 阅读偏好
 - 短剧/漫剧名
 - 映射匹配
 - 最近更新时间
 
-点击某行 `维护映射` 会把小说名称带入页面上的映射表单，填写短剧/漫剧名称后保存到 `novel_mappings`。榜单页未匹配作品点击 `去维护映射` 后，会自动带入短剧/漫剧名称，并保留返回当前榜单筛选条件的入口，方便保存后核对匹配结果。同一小说和同一短剧/漫剧重复保存会更新关系类型和来源，不会新增重复映射。
+页面支持按小说名称或短剧/漫剧名称模糊搜索，并支持用 `映射匹配` 下拉筛选全部、已映射或未映射。手动维护映射时，填写小说名称和短剧/漫剧名称后保存到 `novel_mappings`。榜单页未匹配作品点击 `去维护映射` 后，会自动带入短剧/漫剧名称，并保留返回当前榜单筛选条件的入口，方便保存后核对匹配结果。同一小说和同一短剧/漫剧重复保存会更新关系类型和来源，不会新增重复映射。
 
 小说列表默认优先展示已映射小说；`短剧/漫剧名` 多个映射用 `、` 连接，`映射匹配` 显示 `是/否`。
 

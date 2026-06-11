@@ -4,9 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { initSchema, resetDbForTests } from "../lib/db.js";
-import { importSampleNovelMappings } from "../lib/novels.js";
+import { importSampleNovelMappings, upsertNovelMappings, upsertNovels } from "../lib/novels.js";
 import {
   getLatestRankingDate,
+  getLatestPeriodValue,
   insertCollectionRun,
   listCollectionRuns,
   listRankingEntries,
@@ -264,6 +265,86 @@ test("ranking query marks exact novel matches and unmatched rows", () => {
   assert.equal(rows[1].matchedNovelNames, "未匹配");
 });
 
+test("ranking query returns matched novel platform ids from the novel library", () => {
+  useTempDb("ranking-match-platform-id");
+  upsertNovels([
+    {
+      platformId: "platform-100",
+      bookId: "book-100",
+      novelName: "玄门小祖宗下山了"
+    },
+    {
+      platformId: "platform-200",
+      bookId: "book-200",
+      novelName: "玄门副本"
+    },
+    {
+      novelName: "无平台原著"
+    }
+  ]);
+  upsertNovelMappings([
+    {
+      novelName: "玄门小祖宗下山了",
+      dramaTitle: "玄门小祖宗",
+      relationType: "exact",
+      sourceRef: "test"
+    },
+    {
+      novelName: "玄门副本",
+      dramaTitle: "玄门小祖宗",
+      relationType: "exact",
+      sourceRef: "test"
+    },
+    {
+      novelName: "无平台原著",
+      dramaTitle: "无平台短剧",
+      relationType: "exact",
+      sourceRef: "test"
+    }
+  ]);
+  upsertRankingEntries([
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-10",
+      rank: 1,
+      title: "玄门小祖宗",
+      heatValue: "100",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-10",
+      rank: 2,
+      title: "无平台短剧",
+      heatValue: "90",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-10",
+      rank: 3,
+      title: "未匹配短剧",
+      heatValue: "80",
+      dramaType: "未知",
+      sourceRef: "test"
+    }
+  ]);
+
+  const rows = listRankingEntries({ date: "2026-06-10", source: "native", dataKind: "live" });
+
+  assert.equal(rows[0].matchedNovelNames, "玄门小祖宗下山了、玄门副本");
+  assert.equal(rows[0].matchedNovelPlatformIds, "platform-100、platform-200");
+  assert.equal(rows[1].matchedNovelNames, "无平台原著");
+  assert.equal(rows[1].matchedNovelPlatformIds, "");
+  assert.equal(rows[2].matchedNovelNames, "未匹配");
+  assert.equal(rows[2].matchedNovelPlatformIds, "");
+});
+
 test("ranking query labels sample capture and live rows", () => {
   useTempDb("ranking-data-kind");
   upsertRankingEntries([
@@ -359,6 +440,61 @@ test("getLatestRankingDate returns newest stored ranking date", () => {
   ]);
 
   assert.equal(getLatestRankingDate(), "2026-06-06");
+});
+
+test("latest ranking scope can be filtered by source rank type and period", () => {
+  useTempDb("ranking-latest-scope");
+  upsertRankingEntries([
+    {
+      source: "dataeye",
+      dataKind: "live",
+      rankingDate: "2026-06-10",
+      rankType: 119,
+      rankPeriod: "day",
+      periodValue: "2026-06-10",
+      rank: 1,
+      title: "红果旧榜",
+      heatValue: "10万",
+      dramaType: "测试",
+      sourceRef: "test"
+    },
+    {
+      source: "dataeye",
+      dataKind: "live",
+      rankingDate: "2026-06-11",
+      rankType: 101,
+      rankPeriod: "week",
+      periodValue: "2026-06-01 ~ 2026-06-07",
+      rank: 1,
+      title: "热力周榜",
+      heatValue: "20万",
+      dramaType: "测试",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-09",
+      rankType: 0,
+      rankPeriod: "day",
+      periodValue: "2026-06-09",
+      rank: 1,
+      title: "站内榜",
+      heatValue: "30",
+      dramaType: "未知",
+      sourceRef: "test"
+    }
+  ]);
+
+  assert.equal(
+    getLatestRankingDate({ source: "dataeye", dataKind: "live", rankType: "119", rankPeriod: "day" }),
+    "2026-06-10"
+  );
+  assert.equal(
+    getLatestPeriodValue({ source: "dataeye", dataKind: "live", rankType: "101", rankPeriod: "week" }),
+    "2026-06-01 ~ 2026-06-07"
+  );
+  assert.equal(getLatestPeriodValue({ source: "native", dataKind: "live", rankPeriod: "day" }), "2026-06-09");
 });
 
 test("collection runs can be filtered by date source and mode", () => {

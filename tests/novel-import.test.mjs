@@ -126,7 +126,7 @@ test("importNovelLibraryFromText updates existing novels by book id", () => {
   assert.equal(result.insertedCount, 0);
   assert.equal(result.updatedCount, 1);
 
-  const rows = listNovels("1620893");
+  const rows = listNovels("太荒");
   assert.equal(rows.length, 1);
   assert.equal(rows[0].author, "铁马飞桥");
 });
@@ -299,6 +299,66 @@ test("listNovels sorts mapped novels before unmapped novels", () => {
   assert.equal(rows[0].mappingMatched, true);
   assert.equal(rows[1].novelName, "未映射小说");
   assert.equal(rows[1].mappingMatched, false);
+});
+
+test("listNovels filters by novel name or mapped drama title", () => {
+  useTempDb("novel-library-fuzzy-filter");
+
+  upsertNovels([
+    {
+      novelName: "京婚浓瘾"
+    },
+    {
+      novelName: "未命中小说"
+    }
+  ]);
+  upsertNovelMappings([
+    {
+      novelName: "京婚浓瘾",
+      dramaTitle: "攀枝",
+      relationType: "manual",
+      sourceRef: "manual"
+    }
+  ]);
+
+  assert.deepEqual(
+    listNovels("京婚").map((row) => row.novelName),
+    ["京婚浓瘾"]
+  );
+  assert.deepEqual(
+    listNovels("攀枝").map((row) => row.novelName),
+    ["京婚浓瘾"]
+  );
+});
+
+test("listNovels filters by mapping matched state", () => {
+  useTempDb("novel-library-match-filter");
+
+  upsertNovels([
+    {
+      novelName: "已映射小说"
+    },
+    {
+      novelName: "未映射小说"
+    }
+  ]);
+  upsertNovelMappings([
+    {
+      novelName: "已映射小说",
+      dramaTitle: "已映射短剧",
+      relationType: "manual",
+      sourceRef: "manual"
+    }
+  ]);
+
+  assert.deepEqual(
+    listNovels("", { match: "matched" }).map((row) => row.novelName),
+    ["已映射小说"]
+  );
+  assert.deepEqual(
+    listNovels("", { match: "unmatched" }).map((row) => row.novelName),
+    ["未映射小说"]
+  );
 });
 
 test("listNovels returns an empty list for an empty library", () => {

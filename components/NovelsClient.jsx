@@ -11,24 +11,24 @@ export default function NovelsClient() {
   const searchParams = useSearchParams();
   const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
   const [query, setQuery] = useState("");
+  const [matchFilter, setMatchFilter] = useState("all");
   const [novels, setNovels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [manualNovelName, setManualNovelName] = useState("");
   const [manualDramaTitle, setManualDramaTitle] = useState("");
-  const [manualRelationType, setManualRelationType] = useState("manual");
   const fileInputRef = useRef(null);
   const mappingFileInputRef = useRef(null);
 
   const loadData = useCallback(async () => {
-    const params = new URLSearchParams({ query });
+    const params = new URLSearchParams({ query, match: matchFilter });
     const response = await fetch(`/api/novels?${params.toString()}`);
     const payload = await response.json();
     if (!response.ok) {
       throw new Error(payload.error || "小说库读取失败");
     }
     setNovels(payload.novels || []);
-  }, [query]);
+  }, [query, matchFilter]);
 
   useEffect(() => {
     loadData().catch((error) => setMessage({ type: "error", text: error.message }));
@@ -87,19 +87,13 @@ export default function NovelsClient() {
     }
   }
 
-  function selectNovelForMapping(novel) {
-    setManualNovelName(novel.novelName);
-    setMessage({ type: "info", text: `正在维护小说：${novel.novelName}` });
-  }
-
   async function saveManualMapping(event) {
     event.preventDefault();
     const novelName = manualNovelName.trim();
     const dramaTitle = manualDramaTitle.trim();
-    const relationType = manualRelationType.trim();
 
     if (!novelName || !dramaTitle) {
-      setMessage({ type: "error", text: "请先选择小说，并填写短剧/漫剧名称。" });
+      setMessage({ type: "error", text: "请填写小说名称和短剧/漫剧名称。" });
       return;
     }
 
@@ -114,7 +108,7 @@ export default function NovelsClient() {
             {
               novelName,
               dramaTitle,
-              relationType,
+              relationType: "manual",
               sourceRef: "manual-form"
             }
           ]
@@ -128,7 +122,6 @@ export default function NovelsClient() {
       });
       if (response.ok) {
         setManualDramaTitle("");
-        setManualRelationType("manual");
       }
     } catch (error) {
       setMessage({ type: "error", text: error.message });
@@ -170,28 +163,6 @@ export default function NovelsClient() {
         </div>
       </header>
 
-      <form
-        className="toolbar"
-        aria-label="小说库搜索"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const formData = new FormData(event.currentTarget);
-          setQuery(String(formData.get("query") || ""));
-        }}
-      >
-        <label className="wide-field">
-          搜索
-          <span className="input-with-icon">
-            <Search size={16} />
-            <input key={query} name="query" type="search" placeholder="输入小说名、书库ID或作者" defaultValue={query} />
-          </span>
-        </label>
-        <button className="secondary-button compact" type="submit">
-          <Search size={16} />
-          搜索
-        </button>
-      </form>
-
       <StatusMessage message={message} />
 
       <form className="toolbar" aria-label="维护小说映射" onSubmit={saveManualMapping}>
@@ -213,17 +184,6 @@ export default function NovelsClient() {
             onChange={(event) => setManualDramaTitle(event.target.value)}
           />
         </label>
-        <label>
-          关系类型
-          <select
-            name="relationType"
-            value={manualRelationType}
-            onChange={(event) => setManualRelationType(event.target.value)}
-          >
-            <option value="manual">manual</option>
-            <option value="exact">exact</option>
-          </select>
-        </label>
         <button className="primary-button compact" disabled={loading} type="submit">
           保存映射
         </button>
@@ -232,6 +192,37 @@ export default function NovelsClient() {
             返回榜单核对匹配
           </Link>
         ) : null}
+      </form>
+
+      <form
+        className="toolbar"
+        aria-label="小说库搜索"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          setQuery(String(formData.get("query") || ""));
+          setMatchFilter(String(formData.get("match") || "all"));
+        }}
+      >
+        <label className="wide-field">
+          搜索
+          <span className="input-with-icon">
+            <Search size={16} />
+            <input key={query} name="query" type="search" placeholder="输入小说名称或短剧名称" defaultValue={query} />
+          </span>
+        </label>
+        <label>
+          映射匹配
+          <select name="match" value={matchFilter} onChange={(event) => setMatchFilter(event.target.value)}>
+            <option value="all">全部</option>
+            <option value="matched">是</option>
+            <option value="unmatched">否</option>
+          </select>
+        </label>
+        <button className="secondary-button compact" type="submit">
+          <Search size={16} />
+          搜索
+        </button>
       </form>
 
       <section className="table-panel">
@@ -246,13 +237,9 @@ export default function NovelsClient() {
                 <th>平台ID</th>
                 <th>书库ID</th>
                 <th>小说名称</th>
-                <th>作者</th>
-                <th>分类</th>
-                <th>阅读偏好</th>
                 <th>短剧/漫剧名</th>
                 <th>映射匹配</th>
                 <th>最近更新时间</th>
-                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -261,9 +248,6 @@ export default function NovelsClient() {
                   <td>{novel.platformId || "-"}</td>
                   <td>{novel.bookId || "-"}</td>
                   <td className="strong-cell">{novel.novelName}</td>
-                  <td>{novel.author || "-"}</td>
-                  <td>{[novel.categoryLevel1, novel.categoryLevel2].filter(Boolean).join(" / ") || "-"}</td>
-                  <td>{novel.readerPreference || "-"}</td>
                   <td>{novel.dramaTitles?.length ? novel.dramaTitles.join("、") : "未映射"}</td>
                   <td>
                     <span className={`badge ${novel.mappingMatched ? "matched" : "unmatched"}`}>
@@ -271,22 +255,11 @@ export default function NovelsClient() {
                     </span>
                   </td>
                   <td>{novel.updatedAt}</td>
-                  <td>
-                    <button
-                      className="table-action"
-                      aria-label="维护映射"
-                      disabled={loading}
-                      type="button"
-                      onClick={() => selectNovelForMapping(novel)}
-                    >
-                      维护映射
-                    </button>
-                  </td>
                 </tr>
               ))}
               {!novels.length ? (
                 <tr>
-                  <td colSpan="10" className="empty-cell">
+                  <td colSpan="6" className="empty-cell">
                     暂无小说。请先导入本地 Excel/CSV 小说库。
                   </td>
                 </tr>

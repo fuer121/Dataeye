@@ -1,12 +1,12 @@
 "use client";
 
-import { Database, Download, RefreshCw } from "lucide-react";
+import { Download } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import StatusMessage from "@/components/StatusMessage";
-import { DATAEYE_VISIBLE_RANK_TYPE_OPTIONS } from "@/lib/dataeye-rankings";
+import { DATAEYE_RANKING_DEFINITIONS, DATAEYE_VISIBLE_RANK_TYPE_OPTIONS } from "@/lib/dataeye-rankings";
 
 const sourceLabels = {
   dataeye: "DataEye / 剧查查",
@@ -16,7 +16,7 @@ const sourceLabels = {
 
 const sourceTabs = [
   ["native", "站内原生短剧"],
-  ["dataeye", "DataEye / 剧查查"]
+  ["dataeye", "剧查查"]
 ];
 
 const matchLabels = {
@@ -45,10 +45,11 @@ const dataKindLabels = {
 
 const namedRankTypeOptions = DATAEYE_VISIBLE_RANK_TYPE_OPTIONS;
 const namedDataEyeRankTypes = new Set(namedRankTypeOptions.map(([value]) => Number(value)));
-const fullDataEyeScope = {
-  rankType: "all",
-  period: "all"
-};
+const singlePeriodDataEyeRankPeriods = new Map(
+  DATAEYE_RANKING_DEFINITIONS
+    .filter((item) => item.periods.length === 1)
+    .map((item) => [String(item.rankType), item.periods[0]])
+);
 
 const rankPeriodOptions = [
   ["day", "日榜"],
@@ -71,12 +72,15 @@ export default function DashboardClient({
   const pathname = usePathname();
   const router = useRouter();
   const initialActiveSource = initialSource === "dataeye" ? "dataeye" : "native";
+  const initialSinglePeriod = initialActiveSource === "dataeye"
+    ? singlePeriodDataEyeRankPeriods.get(String(initialRankType))
+    : null;
   const [date, setDate] = useState(initialDate);
   const [source, setSource] = useState(initialActiveSource);
   const [match, setMatch] = useState(initialMatch);
   const [dataKind, setDataKind] = useState(initialDataKind);
   const [rankType, setRankType] = useState(initialRankType);
-  const [rankPeriod, setRankPeriod] = useState(initialRankPeriod);
+  const [rankPeriod, setRankPeriod] = useState(initialSinglePeriod || initialRankPeriod);
   const [periodValue, setPeriodValue] = useState(initialPeriodValue);
   const [items, setItems] = useState(initialItems);
   const [runs, setRuns] = useState(initialRuns);
@@ -84,28 +88,45 @@ export default function DashboardClient({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [confirmedLivePreviewKey, setConfirmedLivePreviewKey] = useState("");
+  const isNativeView = source === "native";
+  const isDataEyeView = source === "dataeye";
+  const filterPeriodValue = isNativeView ? periodValue || date : periodValue;
+  const shouldShowPeriodSwitch = !isDataEyeView || !singlePeriodDataEyeRankPeriods.has(String(rankType));
   const visibleItems = useMemo(() => items.filter(shouldDisplayRankingItem), [items]);
 
   const query = useMemo(() => {
-    const params = new URLSearchParams({ date, source, match, dataKind, rankType, rankPeriod });
-    if (periodValue) params.set("periodValue", periodValue);
+    const params = new URLSearchParams({ source, match, dataKind, rankType, rankPeriod });
+    if (isNativeView) {
+      params.set("date", filterPeriodValue);
+      params.set("periodValue", filterPeriodValue);
+    } else {
+      params.set("date", date);
+      if (filterPeriodValue) params.set("periodValue", filterPeriodValue);
+    }
     return params.toString();
-  }, [date, source, match, dataKind, rankType, rankPeriod, periodValue]);
+  }, [date, source, match, dataKind, rankType, rankPeriod, filterPeriodValue, isNativeView]);
 
   const runsQuery = useMemo(() => {
     const params = new URLSearchParams({
-      date,
+      date: isNativeView ? filterPeriodValue : date,
       source,
       mode: dataKind === "all" ? "all" : dataKind
     });
     return params.toString();
-  }, [date, source, dataKind]);
+  }, [date, source, dataKind, filterPeriodValue, isNativeView]);
 
   const returnToRankings = useMemo(() => {
-    const params = new URLSearchParams({ date, source, match: "all", dataKind, rankType, rankPeriod });
-    if (periodValue) params.set("periodValue", periodValue);
+    const params = new URLSearchParams({
+      date: isNativeView ? filterPeriodValue : date,
+      source,
+      match: "all",
+      dataKind,
+      rankType,
+      rankPeriod
+    });
+    if (filterPeriodValue) params.set("periodValue", filterPeriodValue);
     return `/?${params.toString()}`;
-  }, [date, source, dataKind, rankType, rankPeriod, periodValue]);
+  }, [date, source, dataKind, rankType, rankPeriod, filterPeriodValue, isNativeView]);
 
   const latestPreview = mvpStatus?.dataeye?.latestPreview;
   const latestCapture = mvpStatus?.dataeye?.latestCapture;
@@ -115,9 +136,6 @@ export default function DashboardClient({
   const dataEyeLoginRefreshText = canRefreshDataEyeLogin
     ? "已检测到 fresh DataEye 抓包，可以刷新登录态并预检。"
     : latestPreview?.action || "请重新打开剧查查小程序并用 Charles 导出新 HAR，然后刷新本地登录态。";
-  const isNativeView = source === "native";
-  const isDataEyeView = source === "dataeye";
-
   const loadData = useCallback(async () => {
     const [rankingsResponse, runsResponse, statusResponse] = await Promise.all([
       fetch(`/api/rankings?${query}`),
@@ -145,6 +163,26 @@ export default function DashboardClient({
     setMvpStatus(statusPayload);
   }, [query, runsQuery]);
 
+  async function loadLatestRankingScope(nextSource, scope = {}) {
+    const params = new URLSearchParams({
+      source: nextSource,
+      dataKind: scope.dataKind || dataKind,
+      rankType: scope.rankType || rankType,
+      rankPeriod: scope.rankPeriod || rankPeriod
+    });
+    const response = await fetch(`/api/rankings/latest?${params}`);
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || "最新榜期读取失败");
+    }
+
+    return {
+      date: payload.date || "",
+      periodValue: payload.periodValue || ""
+    };
+  }
+
   useEffect(() => {
     loadData().catch((error) => {
       setMessage({ type: "error", text: error.message });
@@ -155,14 +193,55 @@ export default function DashboardClient({
     router.replace(`${pathname}?${query}`, { scroll: false });
   }, [pathname, query, router]);
 
-  function selectSourceTab(nextSource) {
+  useEffect(() => {
+    if (!isDataEyeView) return;
+    const singlePeriod = singlePeriodDataEyeRankPeriods.get(String(rankType));
+    if (singlePeriod && rankPeriod !== singlePeriod) {
+      setRankPeriod(singlePeriod);
+    }
+  }, [isDataEyeView, rankType, rankPeriod]);
+
+  async function selectSourceTab(nextSource) {
+    const nextDataKind = nextSource === "native" ? "live" : dataKind;
+    const nextRankType = "all";
+    let latestScope = { date, periodValue };
+    try {
+      latestScope = await loadLatestRankingScope(nextSource, {
+        dataKind: nextDataKind,
+        rankType: nextRankType,
+        rankPeriod
+      });
+    } catch (error) {
+      setMessage({ type: "warning", text: error.message });
+    }
+
     setSource(nextSource);
     setMatch("all");
-    setRankType("all");
-    setPeriodValue("");
+    setRankType(nextRankType);
     setConfirmedLivePreviewKey("");
+    if (latestScope.date) {
+      setDate(latestScope.date);
+    }
     if (nextSource === "native") {
       setDataKind("live");
+      setPeriodValue(latestScope.periodValue || latestScope.date);
+    } else {
+      setPeriodValue("");
+    }
+  }
+
+  function updatePrimaryDateFilter(value) {
+    setDate(value);
+    if (source === "native") {
+      setPeriodValue(value);
+    }
+  }
+
+  function updateRankType(value) {
+    setRankType(value);
+    const singlePeriod = singlePeriodDataEyeRankPeriods.get(String(value));
+    if (singlePeriod) {
+      setRankPeriod(singlePeriod);
     }
   }
 
@@ -222,96 +301,9 @@ export default function DashboardClient({
   }
 
   const liveSource = "dataeye";
-  const captureSource = "dataeye";
   const currentLivePreviewKey = `${date}:${liveSource}:${rankType}:${rankPeriod}`;
-  const fullLivePreviewKey = `${date}:${liveSource}:${fullDataEyeScope.rankType}:${fullDataEyeScope.period}`;
   const canCollectLive = confirmedLivePreviewKey === currentLivePreviewKey;
-  const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;
   const liveGateText = canCollectLive ? "已预检，可采集真实榜单" : "预检通过后可落库";
-  const fullLiveGateText = canCollectFullLive ? "已预检，可一键采集全部榜单与周期" : "全量预检通过后可一键落库";
-
-  async function previewLiveCollection(scope = {}) {
-    const targetRankType = scope.rankType || rankType;
-    const targetPeriod = scope.period || rankPeriod;
-    setLoading(true);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/collect/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, source: liveSource, rankType: targetRankType, period: targetPeriod })
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(formatCollectError(payload, "真实采集预检失败"));
-      }
-
-      const firstTitles = (payload.preview || [])
-        .slice(0, 3)
-        .map((item) => `#${item.rank} ${item.title}`)
-        .join("；");
-      setMessage({
-        type: "success",
-        text: `${sourceLabels[payload.source]} 预检成功：${payload.count} 条。${firstTitles}`
-      });
-      setConfirmedLivePreviewKey(`${payload.rankingDate}:${payload.source}:${payload.rankType}:${payload.period}`);
-    } catch (error) {
-      setConfirmedLivePreviewKey("");
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function importCaptureRanking() {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/capture/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, source: captureSource })
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || payload.message || "抓包榜单导入失败");
-      }
-
-      setDate(payload.rankingDate || date);
-      setSource(payload.source || "dataeye");
-      setDataKind("capture");
-      setMatch("all");
-      await loadData();
-      const freshnessText = payload.captureFreshness?.ageLabel
-        ? ` 抓包距今 ${payload.captureFreshness.ageLabel}（${payload.captureFreshness.note}）。`
-        : "";
-      setMessage({
-        type: "success",
-        text: `${sourceLabels[payload.source] || payload.source} 抓包导入完成：新增 ${payload.insertedCount} 条，跳过 ${payload.skippedCount} 条。${freshnessText}`
-      });
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function importNovels() {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/novels/import", { method: "POST" });
-      const payload = await response.json();
-      await loadData();
-      setMessage({ type: response.ok ? "success" : "error", text: payload.message || payload.error });
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function importNativeRankings() {
     setLoading(true);
@@ -332,80 +324,12 @@ export default function DashboardClient({
       setSource("native");
       setDataKind("live");
       setMatch("all");
-      setPeriodValue("");
+      setPeriodValue(payload.rankingDate || date);
       await loadData();
       setMessage({
         type: "success",
         text: `${payload.message} 数据日期 ${payload.rankingDate}，导出日期 ${payload.exportDate}。`
       });
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function uploadCaptureFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    setLoading(true);
-    setMessage(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("/api/captures/upload", {
-        method: "POST",
-        body: formData
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || "抓包上传失败");
-      }
-      let pipelinePayload = payload.pipeline;
-      try {
-        pipelinePayload = pipelinePayload?.reportPath ? pipelinePayload : await requestCapturePipeline();
-      } catch (pipelineError) {
-        await loadData();
-        setMessage({
-          type: "warning",
-          text: `${payload.message} 但 DataEye 抓包报告生成失败：${pipelineError.message}`
-        });
-        return;
-      }
-      await loadData();
-      setConfirmedLivePreviewKey("");
-      setMessage({
-        type: "success",
-        text: `${payload.message} 已生成 DataEye 抓包报告。${pipelinePayload.reportPath || ""}`
-      });
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function requestCapturePipeline() {
-    const response = await fetch("/api/capture/pipeline", { method: "POST" });
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload.message || "DataEye 抓包报告生成失败");
-    }
-
-    return payload;
-  }
-
-  async function runCapturePipeline() {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const payload = await requestCapturePipeline();
-      await loadData();
-      setConfirmedLivePreviewKey("");
-      setMessage({ type: "success", text: payload.message || "DataEye 抓包报告已生成。" });
     } catch (error) {
       setMessage({ type: "error", text: error.message });
     } finally {
@@ -451,35 +375,6 @@ export default function DashboardClient({
           <h1>榜单数据</h1>
           <p>按日期和来源查看短剧/漫剧榜单，并标注小说库精确匹配结果。</p>
         </div>
-        <div className="header-actions">
-          {isDataEyeView ? (
-            <>
-              <label className="secondary-button file-button">
-                上传抓包
-                <input
-                  className="visually-hidden"
-                  type="file"
-                  accept=".har,.json,.txt,.curl"
-                  disabled={loading}
-                  onChange={uploadCaptureFile}
-                />
-              </label>
-              <button className="secondary-button" disabled={loading} onClick={runCapturePipeline}>
-                生成 DataEye 抓包报告
-              </button>
-            </>
-          ) : null}
-          <button className="secondary-button" disabled={loading} onClick={importNovels}>
-            <Database size={16} />
-            导入模拟小说库
-          </button>
-          {isDataEyeView ? (
-            <button className="primary-button" disabled={loading} onClick={() => collect("sample", liveSource)}>
-              <Download size={16} />
-              采集 DataEye 模拟榜单
-            </button>
-          ) : null}
-        </div>
       </header>
 
       <section className="source-tabs" aria-label="榜单来源">
@@ -497,8 +392,8 @@ export default function DashboardClient({
 
       <section className="toolbar" aria-label="榜单筛选">
         <label>
-          日期
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          {isNativeView ? "榜期" : "日期"}
+          <input type="date" value={date} onChange={(event) => updatePrimaryDateFilter(event.target.value)} />
         </label>
         <label>
           匹配状态
@@ -520,10 +415,6 @@ export default function DashboardClient({
             ))}
           </select>
         </label>
-        <label>
-          榜期
-          <input value={periodValue} placeholder="全部榜期" onChange={(event) => setPeriodValue(event.target.value)} />
-        </label>
         {isNativeView ? (
           <button className="primary-button compact" disabled={loading} onClick={importNativeRankings}>
             <Download size={16} />
@@ -532,16 +423,6 @@ export default function DashboardClient({
         ) : null}
         {isDataEyeView ? (
           <>
-            <button className="secondary-button compact" disabled={loading} onClick={() => collect("sample", liveSource)}>
-              <RefreshCw size={16} />
-              采集 DataEye 模拟榜单
-            </button>
-            <button className="ghost-button compact" disabled={loading} onClick={importCaptureRanking}>
-              导入{sourceLabels[captureSource]}抓包榜单
-            </button>
-            <button className="ghost-button compact" disabled={loading} onClick={previewLiveCollection}>
-              预检当前筛选{sourceLabels[liveSource]}
-            </button>
             <button
               className="ghost-button compact"
               disabled={loading || !canCollectLive}
@@ -554,27 +435,6 @@ export default function DashboardClient({
           </>
         ) : null}
       </section>
-
-      {isDataEyeView ? (
-      <section className="status-action collection-action-panel" aria-label="DataEye 全量采集">
-        <strong>全量 DataEye 真实采集</strong>
-        <span>固定按全部可采榜单类型和日榜/周榜/月榜执行，不受当前页面筛选影响。</span>
-        <div className="status-action-row">
-          <button className="secondary-button" disabled={loading} onClick={() => previewLiveCollection(fullDataEyeScope)}>
-            一键全量预检 DataEye
-          </button>
-          <button
-            className="primary-button"
-            disabled={loading || !canCollectFullLive}
-            title={canCollectFullLive ? "" : "先完成同一日期、同一来源的全量预检"}
-            onClick={() => collect("live", liveSource, fullDataEyeScope)}
-          >
-            一键全量真实采集 DataEye
-          </button>
-          <span className="live-gate-status">{fullLiveGateText}</span>
-        </div>
-      </section>
-      ) : null}
 
       <StatusMessage message={message} />
 
@@ -599,7 +459,7 @@ export default function DashboardClient({
             type="button"
             role="tab"
             aria-selected={rankType === "all"}
-            onClick={() => setRankType("all")}
+            onClick={() => updateRankType("all")}
           >
             全部榜单
           </button>
@@ -610,7 +470,7 @@ export default function DashboardClient({
               type="button"
               role="tab"
               aria-selected={rankType === value}
-              onClick={() => setRankType(value)}
+              onClick={() => updateRankType(value)}
             >
               {label}
             </button>
@@ -621,6 +481,7 @@ export default function DashboardClient({
 
       <section className="table-panel">
         <div className="panel-title">
+          {shouldShowPeriodSwitch ? (
           <div className="period-switch" role="tablist" aria-label="切换榜单周期">
             {rankPeriodOptions.map(([value, label]) => (
               <button
@@ -635,6 +496,7 @@ export default function DashboardClient({
               </button>
             ))}
           </div>
+          ) : null}
           <span>{loading ? "处理中" : "已同步本地 SQLite"}</span>
         </div>
         <div className="table-wrap">
@@ -645,9 +507,9 @@ export default function DashboardClient({
                 <th>排名</th>
                 <th>短剧/漫剧名称</th>
                 <th>{isNativeView ? "消耗" : "热度值"}</th>
-                <th>类型</th>
                 <th>是否匹配小说</th>
                 <th>对应小说名称</th>
+                <th>平台 id</th>
                 <th>数据性质</th>
                 <th>采集时间</th>
               </tr>
@@ -659,7 +521,6 @@ export default function DashboardClient({
                   <td>{item.rank}</td>
                   <td className="strong-cell">{item.title}</td>
                   <td>{formatHeatValue(item.heatValue, isNativeView)}</td>
-                  <td>{item.dramaType}</td>
                   <td>
                     <span className={`badge ${item.matchStatus}`}>{item.matchStatus === "matched" ? "已匹配" : "未匹配"}</span>
                   </td>
@@ -675,6 +536,7 @@ export default function DashboardClient({
                       </Link>
                     )}
                   </td>
+                  <td>{item.matchedNovelPlatformIds || ""}</td>
                   <td>
                     <span className={`badge data-kind ${item.dataKind}`}>
                       {dataKindLabels[item.dataKind] || item.dataKind}
@@ -722,12 +584,6 @@ export default function DashboardClient({
       </section>
     </AppShell>
   );
-}
-
-function formatCollectError(payload, fallback) {
-  const message = payload?.error || fallback;
-  if (!payload?.action) return message;
-  return `${message} 下一步：${payload.action}`;
 }
 
 function shouldDisplayRankingItem(item) {

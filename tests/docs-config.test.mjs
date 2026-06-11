@@ -44,11 +44,11 @@ test("README keeps fenced code blocks balanced and mentions verified DataEye liv
   assert.match(readme, /\/api\/status/);
   assert.match(readme, /本地 MVP 状态报告/);
   assert.match(readme, /最新抓包材料/);
-  assert.match(readme, /上传抓包/);
-  assert.match(readme, /上传成功后会自动生成 DataEye 抓包报告/);
-  assert.match(readme, /上传 API 也会返回 pipeline 摘要/);
-  assert.match(readme, /生成 DataEye 抓包报告/);
-  assert.match(readme, /只生成抓包分析、验证、预览和接口规格报告/);
+  assert.match(readme, /页面不展示 `上传抓包` 和 `生成 DataEye 抓包报告` 页头入口/);
+  assert.match(readme, /\/api\/captures\/upload/);
+  assert.doesNotMatch(readme, /上传成功后会自动生成 DataEye 抓包报告/);
+  assert.doesNotMatch(readme, /上传 API 也会返回 pipeline 摘要/);
+  assert.match(readme, /抓包报告流程只生成分析、验证、预览和接口规格报告/);
   assert.match(readme, /\.har.*\.json.*\.txt.*\.curl/s);
   assert.match(readme, /最新 DataEye 抓包为 fresh 时/);
   assert.match(readme, /刷新登录态并预检.*不会自动落库/s);

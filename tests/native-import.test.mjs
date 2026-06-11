@@ -49,6 +49,23 @@ function writeNativeFiles(root, exportFolder = "0610") {
   return dir;
 }
 
+function writeNativeCaptureFiles(root, exportFolder = "0610") {
+  const dir = path.join(root, "captures", "原生短剧数据", exportFolder);
+  writeNativeWorkbook(path.join(dir, "day.xlsx"), [
+    ["短剧名称", "消耗"],
+    ["捕获目录日榜", 10]
+  ]);
+  writeNativeWorkbook(path.join(dir, "week.xlsx"), [
+    ["短剧名称", "消耗"],
+    ["捕获目录周榜", 20]
+  ]);
+  writeNativeWorkbook(path.join(dir, "month.xlsx"), [
+    ["短剧名称", "消耗"],
+    ["捕获目录月榜", 30]
+  ]);
+  return dir;
+}
+
 test("native export dates support MMDD and resolve to T-1 ranking date", () => {
   assert.equal(normalizeNativeExportDate("0610"), "2026-06-10");
   assert.equal(normalizeNativeExportDate("20260610"), "2026-06-10");
@@ -157,4 +174,45 @@ test("native import CLI writes rows and collection run summary", () => {
   } finally {
     db.close();
   }
+});
+
+test("native import CLI reads captures native directory by default", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "native-import-captures-default-"));
+  writeNativeCaptureFiles(root, "0610");
+  const sqlitePath = path.join(root, "data/ju-chacha.sqlite");
+  const result = spawnSync(
+    "node",
+    [path.join(process.cwd(), "scripts/import-native-rankings.js"), "--date", "2026-06-09"],
+    {
+      cwd: root,
+      env: { ...process.env, SQLITE_PATH: sqlitePath },
+      encoding: "utf8"
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Status: success/);
+  assert.match(result.stdout, /Export date: 2026-06-10/);
+  assert.match(result.stdout, /Inserted: 3/);
+});
+
+test("native import CLI falls back to latest captures export when selected date has no matching folder", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "native-import-captures-latest-"));
+  writeNativeCaptureFiles(root, "0611");
+  const sqlitePath = path.join(root, "data/ju-chacha.sqlite");
+  const result = spawnSync(
+    "node",
+    [path.join(process.cwd(), "scripts/import-native-rankings.js"), "--date", "2026-06-11"],
+    {
+      cwd: root,
+      env: { ...process.env, SQLITE_PATH: sqlitePath },
+      encoding: "utf8"
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Status: success/);
+  assert.match(result.stdout, /Export date: 2026-06-11/);
+  assert.match(result.stdout, /Ranking date: 2026-06-10/);
+  assert.match(result.stdout, /Inserted: 3/);
 });

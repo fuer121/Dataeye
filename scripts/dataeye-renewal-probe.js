@@ -11,7 +11,7 @@ import {
   rel,
   writeMarkdown
 } from "./capture-utils.js";
-import { compareDataEyeMotionComicRequests, isDataEyeMotionComicRequest } from "../lib/dataeye-capture-target.js";
+import { compareDataEyeRankingRequests, isDataEyeRankingRequest } from "../lib/dataeye-capture-target.js";
 
 const charles = await inspectCharles();
 const wechat = inspectMacWeChat();
@@ -57,8 +57,8 @@ function findDataEyeTargetRequest() {
   const { requests } = parseCaptureFiles(files);
   return (
     requests
-      .filter((request) => matchesRequestSource(request, "dataeye") && isDataEyeMotionComicRequest(request))
-      .sort(compareDataEyeMotionComicRequests)[0] || null
+      .filter((request) => matchesRequestSource(request, "dataeye") && isDataEyeRankingRequest(request))
+      .sort(compareDataEyeRankingRequests)[0] || null
   );
 }
 
