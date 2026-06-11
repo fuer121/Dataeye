@@ -11,7 +11,7 @@ test("dashboard exposes source tabs for native and DataEye views", () => {
   assert.match(source, /站内原生短剧/);
   assert.match(sourceTabs, /\["dataeye", "剧查查"\]/);
   assert.doesNotMatch(sourceTabs, /DataEye \/ 剧查查/);
-  assert.match(source, /dataeye: "DataEye \/ 剧查查"/);
+  assert.match(source, /dataeye: "剧查查"/);
   assert.match(source, /source === "native"/);
   assert.match(source, /source === "dataeye"/);
 });

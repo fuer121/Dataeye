@@ -31,7 +31,7 @@ test("dashboard hides DataEye sample collection actions from the page", () => {
   assert.doesNotMatch(source, /采集 DataEye 模拟榜单/);
   assert.doesNotMatch(source, /collect\("sample", liveSource\)/);
   assert.doesNotMatch(source, /RefreshCw/);
-  assert.match(source, /采集当前筛选/);
+  assert.doesNotMatch(source, /采集当前筛选/);
 });
 
 test("dashboard hides DataEye current-filter preview action while keeping the API available", () => {
@@ -100,12 +100,12 @@ test("novel management page is a single book library view with local file import
   assert.doesNotMatch(novels, />分类</);
   assert.doesNotMatch(novels, />阅读偏好</);
   assert.doesNotMatch(novels, />操作</);
-  assert.ok(novels.indexOf(">小说名称</") < novels.indexOf(">短剧/漫剧名</"));
-  assert.ok(novels.indexOf(">短剧/漫剧名</") < novels.indexOf(">映射匹配</"));
+  assert.ok(novels.indexOf("<th>小说名称</th>") < novels.indexOf("<th>短剧/漫剧名</th>"));
+  assert.ok(novels.indexOf("<th>短剧/漫剧名</th>") < novels.indexOf("<th>映射匹配</th>"));
   assert.match(novels, /novel\.mappingMatched \? "是" : "否"/);
-  assert.match(novels, /name="match"/);
-  assert.match(novels, /value="matched"/);
-  assert.match(novels, /value="unmatched"/);
+  assert.match(novels, /role="tablist" aria-label="映射匹配"/);
+  assert.match(novels, /\["matched", "是"\]/);
+  assert.match(novels, /\["unmatched", "否"\]/);
   assert.match(novels, /placeholder="输入小说名称或短剧名称"/);
   assert.doesNotMatch(novels, /关系类型/);
   assert.doesNotMatch(novels, /manualRelationType/);
@@ -420,15 +420,18 @@ test("dashboard defaults to matched rows only on first entry when matched rows e
   assert.match(page, /matchedRows\.some\(isVisibleInitialRankingRow\) \? "matched" : "all"/);
 });
 
-test("dashboard shows a visible live collection gate before confirmed preview", () => {
+test("dashboard keeps DataEye collection outside the primary operator flow", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const api = fs.readFileSync(path.join(process.cwd(), "app/api/collect/route.js"), "utf8");
 
-  assert.match(source, /预检通过后可落库/);
-  assert.match(source, /已预检，可采集真实榜单/);
-  assert.match(source, /canCollectLive \? "已预检，可采集真实榜单" : "预检通过后可落库"/);
+  assert.match(source, /采集能力保留在后台接口和命令行/);
+  assert.doesNotMatch(source, /预检通过后可落库/);
+  assert.doesNotMatch(source, /已预检，可采集真实榜单/);
+  assert.doesNotMatch(source, /canCollectLive \? "已预检，可采集真实榜单" : "预检通过后可落库"/);
   assert.doesNotMatch(source, /const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;/);
   assert.doesNotMatch(source, /全量预检通过后可一键落库/);
   assert.doesNotMatch(source, /已预检，可一键采集全部榜单与周期/);
+  assert.match(api, /runCollection/);
 });
 
 test("dashboard hides fixed full-scope DataEye preview and live actions", () => {
@@ -441,7 +444,7 @@ test("dashboard hides fixed full-scope DataEye preview and live actions", () => 
   assert.doesNotMatch(source, /一键全量真实采集 DataEye/);
   assert.doesNotMatch(source, /previewLiveCollection\(fullDataEyeScope\)/);
   assert.doesNotMatch(source, /collect\("live", liveSource, fullDataEyeScope\)/);
-  assert.match(source, /采集当前筛选/);
+  assert.doesNotMatch(source, /采集当前筛选/);
 });
 
 test("dashboard focuses the live data view after successful live collection", () => {
@@ -458,4 +461,57 @@ test("dashboard surfaces live preview recovery actions", () => {
 
   assert.match(api, /collectorErrorPayload\(error\)/);
   assert.match(api, /status: 502/);
+});
+
+test("dashboard uses operator-facing layout language and refresh feedback", () => {
+  const dashboard = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const shell = fs.readFileSync(path.join(process.cwd(), "components/AppShell.jsx"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  assert.match(shell, /榜单匹配工作台/);
+  assert.doesNotMatch(shell, /MVP/);
+  assert.match(dashboard, /className="workspace-header"/);
+  assert.match(dashboard, /运营核对台/);
+  assert.match(dashboard, /aria-label="核心筛选"/);
+  assert.match(dashboard, /className="filter-panel"/);
+  assert.match(dashboard, /aria-busy=\{refreshing\}/);
+  assert.match(dashboard, /className="table-skeleton"/);
+  assert.doesNotMatch(dashboard, /已同步本地 SQLite/);
+  assert.doesNotMatch(dashboard, /本地 SQLite/);
+  assert.match(css, /\.workspace-header/);
+  assert.match(css, /\.table-skeleton/);
+  assert.match(css, /\.is-refreshing/);
+});
+
+test("dashboard does not refresh MVP status on every ranking filter change", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /async function loadStatus\(\)/);
+  assert.match(source, /const \[rankingsResponse, runsResponse\] = await Promise\.all/);
+  assert.doesNotMatch(source, /const \[rankingsResponse, runsResponse, statusResponse\] = await Promise\.all/);
+  assert.match(source, /requestSeqRef/);
+});
+
+test("novel management page uses the same refined workspace layout and debounced search", () => {
+  const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  assert.match(novels, /className="workspace-header"/);
+  assert.match(novels, /aria-label="小说库操作"/);
+  assert.match(novels, /debouncedQuery/);
+  assert.match(novels, /setTimeout/);
+  assert.match(novels, /className="filter-panel"/);
+  assert.match(novels, /aria-busy=\{loading\}/);
+  assert.match(novels, /className="table-skeleton"/);
+  assert.match(css, /\.mapping-panel/);
+  assert.match(css, /\.source-segment/);
+});
+
+test("dashboard empty state gives an operator next step instead of an engineering note", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /className="empty-state"/);
+  assert.match(source, /可以切换匹配状态/);
+  assert.doesNotMatch(source, /后台查询/);
+  assert.doesNotMatch(source, /未命名的 DataEye/);
 });

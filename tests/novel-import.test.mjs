@@ -331,6 +331,15 @@ test("listNovels filters by novel name or mapped drama title", () => {
   );
 });
 
+test("listNovels pushes search and mapping filters into SQLite before enrichment", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "lib/novels.js"), "utf8");
+
+  assert.match(source, /const where = \[\];/);
+  assert.match(source, /EXISTS \(/);
+  assert.match(source, /WHERE \$\{whereSql\}/);
+  assert.match(source, /novel_name IN/);
+});
+
 test("listNovels filters by mapping matched state", () => {
   useTempDb("novel-library-match-filter");
 

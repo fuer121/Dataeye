@@ -10,7 +10,8 @@ import StatusMessage from "@/components/StatusMessage";
 export default function NovelsClient() {
   const searchParams = useSearchParams();
   const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
-  const [query, setQuery] = useState("");
+  const [queryInput, setQueryInput] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [matchFilter, setMatchFilter] = useState("all");
   const [novels, setNovels] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -21,14 +22,26 @@ export default function NovelsClient() {
   const mappingFileInputRef = useRef(null);
 
   const loadData = useCallback(async () => {
-    const params = new URLSearchParams({ query, match: matchFilter });
-    const response = await fetch(`/api/novels?${params.toString()}`);
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "小说库读取失败");
+    setLoading(true);
+    const params = new URLSearchParams({ query: debouncedQuery, match: matchFilter });
+    try {
+      const response = await fetch(`/api/novels?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "小说库读取失败");
+      }
+      setNovels(payload.novels || []);
+    } finally {
+      setLoading(false);
     }
-    setNovels(payload.novels || []);
-  }, [query, matchFilter]);
+  }, [debouncedQuery, matchFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(queryInput.trim());
+    }, 260);
+    return () => clearTimeout(timer);
+  }, [queryInput]);
 
   useEffect(() => {
     loadData().catch((error) => setMessage({ type: "error", text: error.message }));
@@ -38,7 +51,7 @@ export default function NovelsClient() {
     const dramaTitle = String(searchParams.get("dramaTitle") || "").trim();
     if (!dramaTitle) return;
     setManualDramaTitle(dramaTitle);
-    setMessage({ type: "info", text: `已带入榜单作品：${dramaTitle}，请选择小说后保存映射。` });
+    setMessage({ type: "info", text: `已带入榜单作品：${dramaTitle}，选择小说后保存映射。` });
   }, [searchParams]);
 
   async function importFile(file) {
@@ -132,12 +145,13 @@ export default function NovelsClient() {
 
   return (
     <AppShell active="novels">
-      <header className="page-header">
+      <header className="workspace-header">
         <div>
-          <h1>小说库</h1>
-          <p>导入本地 Excel/CSV 小说主库，并在小说列表中维护短剧/漫剧映射。</p>
+          <span className="eyebrow">小说库</span>
+          <h1>小说与短剧映射维护</h1>
+          <p>导入小说主库和映射 Excel，按小说名或短剧名快速核对哪些内容已完成匹配。</p>
         </div>
-        <div className="header-actions">
+        <div className="workspace-actions" aria-label="小说库操作">
           <input
             ref={fileInputRef}
             className="visually-hidden"
@@ -145,9 +159,14 @@ export default function NovelsClient() {
             accept=".xlsx,.xls,.csv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/json"
             onChange={(event) => importFile(event.target.files?.[0])}
           />
-          <button className="primary-button" disabled={loading} onClick={() => fileInputRef.current?.click()}>
+          <button
+            aria-label="导入 Excel/CSV 小说主库"
+            className="primary-button"
+            disabled={loading}
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Upload size={16} />
-            导入 Excel/CSV
+            导入小说主库
           </button>
           <input
             ref={mappingFileInputRef}
@@ -165,12 +184,16 @@ export default function NovelsClient() {
 
       <StatusMessage message={message} />
 
-      <form className="toolbar" aria-label="维护小说映射" onSubmit={saveManualMapping}>
+      <form className="mapping-panel" aria-label="维护小说映射" onSubmit={saveManualMapping}>
+        <div>
+          <span className="eyebrow">映射维护</span>
+          <h2>把榜单作品关联到站内小说</h2>
+        </div>
         <label>
           小说名称
           <input
             name="novelName"
-            placeholder="从下方列表点击维护映射"
+            placeholder="点击下方小说名称可自动带入"
             value={manualNovelName}
             onChange={(event) => setManualNovelName(event.target.value)}
           />
@@ -179,7 +202,7 @@ export default function NovelsClient() {
           短剧/漫剧名称
           <input
             name="dramaTitle"
-            placeholder="输入短剧/漫剧名称"
+            placeholder="输入短剧或漫剧名称"
             value={manualDramaTitle}
             onChange={(event) => setManualDramaTitle(event.target.value)}
           />
@@ -195,40 +218,57 @@ export default function NovelsClient() {
       </form>
 
       <form
-        className="toolbar"
+        className="filter-panel"
         aria-label="小说库搜索"
         onSubmit={(event) => {
           event.preventDefault();
-          const formData = new FormData(event.currentTarget);
-          setQuery(String(formData.get("query") || ""));
-          setMatchFilter(String(formData.get("match") || "all"));
+          setDebouncedQuery(queryInput.trim());
         }}
       >
         <label className="wide-field">
-          搜索
+          搜索小说或短剧
           <span className="input-with-icon">
             <Search size={16} />
-            <input key={query} name="query" type="search" placeholder="输入小说名称或短剧名称" defaultValue={query} />
+            <input
+              name="query"
+              type="search"
+              placeholder="输入小说名称或短剧名称"
+              value={queryInput}
+              onChange={(event) => setQueryInput(event.target.value)}
+            />
           </span>
         </label>
-        <label>
-          映射匹配
-          <select name="match" value={matchFilter} onChange={(event) => setMatchFilter(event.target.value)}>
-            <option value="all">全部</option>
-            <option value="matched">是</option>
-            <option value="unmatched">否</option>
-          </select>
-        </label>
+        <div className="segmented-field">
+          <span className="field-label">映射匹配</span>
+          <div className="segmented-control" role="tablist" aria-label="映射匹配">
+            {[
+              ["all", "全部"],
+              ["matched", "是"],
+              ["unmatched", "否"]
+            ].map(([value, label]) => (
+              <button
+                className={matchFilter === value ? "active" : ""}
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={matchFilter === value}
+                onClick={() => setMatchFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button className="secondary-button compact" type="submit">
           <Search size={16} />
           搜索
         </button>
       </form>
 
-      <section className="table-panel">
+      <section className={`table-panel ${loading ? "is-refreshing" : ""}`} aria-busy={loading}>
         <div className="panel-title">
           <h2>小说库</h2>
-          <span>{novels.length} 条</span>
+          <span>{loading ? "正在更新" : `${novels.length} 条`}</span>
         </div>
         <div className="table-wrap">
           <table>
@@ -243,27 +283,44 @@ export default function NovelsClient() {
               </tr>
             </thead>
             <tbody>
-              {novels.map((novel) => (
-                <tr key={novel.id}>
-                  <td>{novel.platformId || "-"}</td>
-                  <td>{novel.bookId || "-"}</td>
-                  <td className="strong-cell">{novel.novelName}</td>
-                  <td>{novel.dramaTitles?.length ? novel.dramaTitles.join("、") : "未映射"}</td>
-                  <td>
-                    <span className={`badge ${novel.mappingMatched ? "matched" : "unmatched"}`}>
-                      {novel.mappingMatched ? "是" : "否"}
-                    </span>
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="table-skeleton">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
                   </td>
-                  <td>{novel.updatedAt}</td>
                 </tr>
-              ))}
-              {!novels.length ? (
+              ) : novels.length ? (
+                novels.map((novel) => (
+                  <tr key={novel.id}>
+                    <td>{novel.platformId || "-"}</td>
+                    <td>{novel.bookId || "-"}</td>
+                    <td className="strong-cell">
+                      <button className="inline-text-button" type="button" onClick={() => setManualNovelName(novel.novelName)}>
+                        {novel.novelName}
+                      </button>
+                    </td>
+                    <td>{novel.dramaTitles?.length ? novel.dramaTitles.join("、") : "未映射"}</td>
+                    <td>
+                      <span className={`badge ${novel.mappingMatched ? "matched" : "unmatched"}`}>
+                        {novel.mappingMatched ? "是" : "否"}
+                      </span>
+                    </td>
+                    <td>{novel.updatedAt}</td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
                   <td colSpan="6" className="empty-cell">
-                    暂无小说。请先导入本地 Excel/CSV 小说库。
+                    <div className="empty-state">
+                      <strong>当前条件下没有小说记录</strong>
+                      <span>可以调整搜索词或映射匹配筛选；如果还没有数据，请先导入小说主库或映射 Excel。</span>
+                    </div>
                   </td>
                 </tr>
-              ) : null}
+              )}
             </tbody>
           </table>
         </div>

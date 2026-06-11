@@ -52,6 +52,7 @@
 | 2026-06-11 | 隐藏 DataEye 页面抓包榜单导入入口 | 当前页面已定位为真实榜单核对和当前筛选采集，抓包导入属于后台/CLI 辅助流程，继续展示会和真实 live 入口混淆 | 前端不展示 `导入 DataEye / 剧查查抓包榜单`；`/api/capture/import` 与 `npm run capture:import` 保留 |
 | 2026-06-11 | 隐藏 DataEye 页面当前筛选预检入口 | 当前页面继续收敛为榜单核对视图，预检属于后台/CLI/API 操作，继续展示会增加运营侧误触和理解成本 | 前端不展示 `预检当前筛选 DataEye / 剧查查`；`/api/collect/preview` 和 `collect:preview` 保留 |
 | 2026-06-11 | 顶层来源 Tab 文案收敛为 `剧查查` | 运营页面顶部入口需要更短、更贴近用户实际识别的小程序名称 | 仅修改来源 Tab 显示文案；底层 `source=dataeye`、DataEye 登录态、采集 API 和报告口径不变 |
+| 2026-06-11 | 从 `origin/main` 创建 `codex/upgrade` 推进核对台体验升级 | 项目已进入优化阶段，当前主要问题是页面仍保留 MVP/工程化入口、筛选反馈弱、小说库搜索在大表下成本偏高 | 本轮只做 UI 文案、布局、loading/空态、请求去冗余和小说库查询下推；不改真实采集规则、不新增采集器、不提交本地材料 |
 
 ## 任务看板
 
@@ -86,6 +87,7 @@
 | T-027 | 隐藏 DataEye 抓包榜单导入入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有抓包导入 CLI/API | `components/DashboardClient.jsx` 移除抓包导入按钮和前端函数、README CLI-only 说明、测试覆盖、主控文档同步 | 页面不再展示 `导入 DataEye / 剧查查抓包榜单`；后台 `app/api/capture/import` 保留；目标测试、lint 和浏览器验收通过 |
 | T-028 | 隐藏 DataEye 当前筛选预检入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有预检 API | `components/DashboardClient.jsx` 移除预检按钮和前端函数、README CLI/API 说明、测试覆盖、主控文档同步 | 页面不再展示 `预检当前筛选 DataEye / 剧查查`；后台 `app/api/collect/preview` 保留；目标测试、lint 和页面 HTML 验收通过 |
 | T-029 | 顶层来源 Tab 改名为剧查查 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `sourceTabs` | `components/DashboardClient.jsx` 来源 Tab 文案调整、测试覆盖、主控文档同步 | 顶层来源 Tab 显示 `剧查查`；底层 `source=dataeye` 和 `sourceLabels.dataeye` 仍保留 DataEye / 剧查查 语义 |
+| T-030 | 榜单核对台 UI/交互与小说库查询性能升级 | 完成 | 实现型 Agent + 验证型 Agent | 最新 `origin/main`、现有真实数据口径、T-018 至 T-029 页面收敛结果 | 核对台视觉与文案重构、筛选区分层、表格 loading/空态、状态请求去冗余、小说库搜索和映射筛选 SQL 下推、README 同步 | `npm test`、`npm run lint`、`npm run build` 和本地浏览器验收通过；待提交推送 |
 
 ## 线程索引
 
@@ -96,18 +98,19 @@
 | 登录态稳定性线程 | 验证抓包刷新登录态和日常调度是否可靠 | 待启动 | Proxyman/Charles 抓包材料、capture scripts | 给出可稳定执行路径或阻塞原因 |
 | 原生 Excel 数据接入线程 | 将 `原生短剧数据` 或 `captures/原生短剧数据` 作为站内原生短剧来源入库并展示 | 完成 | `day.xlsx`、`week.xlsx`、`month.xlsx` | CLI/API/UI 可导入并展示；页面日期无匹配导出目录时可回退到最新完整导出目录；小说匹配复用现有精确匹配 |
 | 小说库管理优化线程 | 将小说库改为本地 Excel/CSV 主库导入 + 单页映射维护，并支持独立映射 Excel 导入和映射核对筛选 | 完成 | 本地小说主库导出字段、映射 Excel、`novels`、`novel_mappings`、`/novels` 页面 | 小说主库可导入和搜索，映射 Excel 可批量写入映射，小说/短剧模糊搜索和映射状态筛选可用，榜单页回填短剧名路径保留 |
+| 核对台体验升级线程 | 收敛榜单和小说库页面为运营核对工作台，并降低大表筛选成本 | 完成 | `codex/upgrade`、现有页面反馈、真实数据查询路径 | UI 重构、请求优化、查询下推、文档和验证结果 | 完整测试、lint、build、浏览器验收通过；待提交当前分支 |
 
 ## Git 记录
 
 | 项 | 状态 |
 | --- | --- |
-| 当前工作分支 | `codex/fiction-get` |
-| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/fiction-get` |
+| 当前工作分支 | `codex/upgrade` |
+| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/upgrade` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 本轮提交目标为 `origin/codex/fiction-get`，PR 待创建或更新 |
+| 远端状态 | 本轮提交目标为 `origin/codex/upgrade`，PR 待创建 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
 | 最近主控提交 | T-009：固化总控职责必读文件 |
-| 本轮提交边界 | T-013 至 T-029：小说库表格与筛选简化、DataEye 新 4 榜单与页面核对优化、站内原生短剧导入目录修正、匹配平台 id、入口隐藏与来源 Tab 文案调整 |
+| 本轮提交边界 | T-030：榜单核对台 UI/交互升级、小说库查询性能优化、README 和主控文档同步 |
 | 暂存说明 | `docs/capture-import.md`、`docs/dataeye-login-refresh.md`、`docs/live-collection-preview.md`、`docs/live-collection-run.md` 属运行报告，`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
 ## 风险与阻塞清单
@@ -129,6 +132,6 @@
 
 ## 下一步行动
 
-1. 推送 `codex/fiction-get` 后创建或更新 PR，审查重点放在小说库映射、DataEye 新 4 榜单、站内原生短剧导入和榜单核对 UI。
-2. 运行报告和本地数据材料继续保持未提交，后续如需沉淀报告再单独开文档任务。
-3. 下一步在页面继续核对 `2026-06-11` 的 DataEye live 数据和站内原生短剧匹配结果。
+1. 完成 T-030 的完整验证：`npm test`、`npm run lint`、`npm run build` 和浏览器页面验收。
+2. 仅暂存 T-030 相关代码、测试、README 和主控文档，继续排除运行报告、本地抓包和数据材料。
+3. 验证通过后提交并推送 `codex/upgrade`，再创建 PR。

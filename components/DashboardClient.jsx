@@ -3,13 +3,13 @@
 import { Download } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import StatusMessage from "@/components/StatusMessage";
 import { DATAEYE_RANKING_DEFINITIONS, DATAEYE_VISIBLE_RANK_TYPE_OPTIONS } from "@/lib/dataeye-rankings";
 
 const sourceLabels = {
-  dataeye: "DataEye / 剧查查",
+  dataeye: "剧查查",
   native: "站内原生短剧",
   hongguo: "红果（暂停推进）"
 };
@@ -31,16 +31,16 @@ const runStatusLabels = {
 };
 
 const runModeLabels = {
-  sample: "模拟",
-  capture: "抓包导入",
-  live: "真实 live"
+  sample: "模拟数据",
+  capture: "抓包数据",
+  live: "真实数据"
 };
 
 const dataKindLabels = {
-  all: "全部性质",
-  sample: "模拟",
-  capture: "抓包导入",
-  live: "真实 live"
+  all: "全部数据",
+  sample: "模拟数据",
+  capture: "抓包数据",
+  live: "真实数据"
 };
 
 const namedRankTypeOptions = DATAEYE_VISIBLE_RANK_TYPE_OPTIONS;
@@ -71,6 +71,8 @@ export default function DashboardClient({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const requestSeqRef = useRef(0);
+  const hydratedRef = useRef(false);
   const initialActiveSource = initialSource === "dataeye" ? "dataeye" : "native";
   const initialSinglePeriod = initialActiveSource === "dataeye"
     ? singlePeriodDataEyeRankPeriods.get(String(initialRankType))
@@ -86,6 +88,7 @@ export default function DashboardClient({
   const [runs, setRuns] = useState(initialRuns);
   const [mvpStatus, setMvpStatus] = useState(initialMvpStatus);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState(null);
   const [confirmedLivePreviewKey, setConfirmedLivePreviewKey] = useState("");
   const isNativeView = source === "native";
@@ -93,6 +96,8 @@ export default function DashboardClient({
   const filterPeriodValue = isNativeView ? periodValue || date : periodValue;
   const shouldShowPeriodSwitch = !isDataEyeView || !singlePeriodDataEyeRankPeriods.has(String(rankType));
   const visibleItems = useMemo(() => items.filter(shouldDisplayRankingItem), [items]);
+  const matchedCount = useMemo(() => visibleItems.filter((item) => item.matchStatus === "matched").length, [visibleItems]);
+  const unmatchedCount = Math.max(visibleItems.length - matchedCount, 0);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ source, match, dataKind, rankType, rankPeriod });
@@ -136,32 +141,48 @@ export default function DashboardClient({
   const dataEyeLoginRefreshText = canRefreshDataEyeLogin
     ? "已检测到 fresh DataEye 抓包，可以刷新登录态并预检。"
     : latestPreview?.action || "请重新打开剧查查小程序并用 Charles 导出新 HAR，然后刷新本地登录态。";
-  const loadData = useCallback(async () => {
-    const [rankingsResponse, runsResponse, statusResponse] = await Promise.all([
-      fetch(`/api/rankings?${query}`),
-      fetch(`/api/runs?${runsQuery}`),
-      fetch("/api/status")
-    ]);
-    const rankingsPayload = await rankingsResponse.json();
-    const runsPayload = await runsResponse.json();
-    const statusPayload = await statusResponse.json();
+  const liveSource = "dataeye";
+  const collectionBoundaryText = `${sourceLabels[liveSource]} 采集能力保留在后台接口和命令行，页面只展示已入库的真实榜单。`;
 
-    if (!rankingsResponse.ok) {
-      throw new Error(rankingsPayload.error || "榜单数据读取失败");
+  const loadData = useCallback(async ({ showRefreshing = true } = {}) => {
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+    if (showRefreshing) setRefreshing(true);
+
+    try {
+      const [rankingsResponse, runsResponse] = await Promise.all([
+        fetch(`/api/rankings?${query}`),
+        fetch(`/api/runs?${runsQuery}`)
+      ]);
+      const rankingsPayload = await rankingsResponse.json();
+      const runsPayload = await runsResponse.json();
+
+      if (!rankingsResponse.ok) {
+        throw new Error(rankingsPayload.error || "榜单数据读取失败");
+      }
+
+      if (!runsResponse.ok) {
+        throw new Error(runsPayload.error || "采集日志读取失败");
+      }
+
+      if (requestSeq !== requestSeqRef.current) return;
+      setItems(rankingsPayload.items || []);
+      setRuns(runsPayload.items || []);
+    } finally {
+      if (requestSeq === requestSeqRef.current && showRefreshing) {
+        setRefreshing(false);
+      }
     }
-
-    if (!runsResponse.ok) {
-      throw new Error(runsPayload.error || "采集日志读取失败");
-    }
-
-    if (!statusResponse.ok) {
-      throw new Error(statusPayload.error || "MVP 状态读取失败");
-    }
-
-    setItems(rankingsPayload.items || []);
-    setRuns(runsPayload.items || []);
-    setMvpStatus(statusPayload);
   }, [query, runsQuery]);
+
+  async function loadStatus() {
+    const response = await fetch("/api/status");
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "状态读取失败");
+    }
+    setMvpStatus(payload);
+  }
 
   async function loadLatestRankingScope(nextSource, scope = {}) {
     const params = new URLSearchParams({
@@ -184,7 +205,12 @@ export default function DashboardClient({
   }
 
   useEffect(() => {
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      return;
+    }
     loadData().catch((error) => {
+      setRefreshing(false);
       setMessage({ type: "error", text: error.message });
     });
   }, [loadData]);
@@ -205,6 +231,7 @@ export default function DashboardClient({
     const nextDataKind = nextSource === "native" ? "live" : dataKind;
     const nextRankType = "all";
     let latestScope = { date, periodValue };
+    setRefreshing(true);
     try {
       latestScope = await loadLatestRankingScope(nextSource, {
         dataKind: nextDataKind,
@@ -216,7 +243,6 @@ export default function DashboardClient({
     }
 
     setSource(nextSource);
-    setMatch("all");
     setRankType(nextRankType);
     setConfirmedLivePreviewKey("");
     if (latestScope.date) {
@@ -275,7 +301,8 @@ export default function DashboardClient({
         })
       });
       const payload = await response.json();
-      await loadData();
+      await loadData({ showRefreshing: false });
+      await loadStatus();
 
       const runs = payload.runs || [];
       const hasFailedRun = runs.some((run) => run.status === "failed");
@@ -300,11 +327,6 @@ export default function DashboardClient({
     }
   }
 
-  const liveSource = "dataeye";
-  const currentLivePreviewKey = `${date}:${liveSource}:${rankType}:${rankPeriod}`;
-  const canCollectLive = confirmedLivePreviewKey === currentLivePreviewKey;
-  const liveGateText = canCollectLive ? "已预检，可采集真实榜单" : "预检通过后可落库";
-
   async function importNativeRankings() {
     setLoading(true);
     setMessage(null);
@@ -325,10 +347,11 @@ export default function DashboardClient({
       setDataKind("live");
       setMatch("all");
       setPeriodValue(payload.rankingDate || date);
-      await loadData();
+      await loadData({ showRefreshing: false });
+      await loadStatus();
       setMessage({
         type: "success",
-        text: `${payload.message} 数据日期 ${payload.rankingDate}，导出日期 ${payload.exportDate}。`
+        text: `${payload.message} 数据榜期 ${payload.rankingDate}，导出日期 ${payload.exportDate}。`
       });
     } catch (error) {
       setMessage({ type: "error", text: error.message });
@@ -355,7 +378,8 @@ export default function DashboardClient({
         body: JSON.stringify({ date })
       });
       const payload = await response.json();
-      await loadData();
+      await loadData({ showRefreshing: false });
+      await loadStatus();
       setConfirmedLivePreviewKey("");
       setMessage({
         type: response.ok ? "success" : "warning",
@@ -370,14 +394,20 @@ export default function DashboardClient({
 
   return (
     <AppShell active="rankings">
-      <header className="page-header">
+      <header className="workspace-header">
         <div>
-          <h1>榜单数据</h1>
-          <p>按日期和来源查看短剧/漫剧榜单，并标注小说库精确匹配结果。</p>
+          <span className="eyebrow">运营核对台</span>
+          <h1>热门榜单与小说匹配</h1>
+          <p>优先查看已匹配作品，快速确认对应小说和平台 id；未匹配作品可直接进入小说库维护。</p>
+        </div>
+        <div className="workspace-header-meta" aria-label="当前筛选摘要">
+          <span>{sourceLabels[source]}</span>
+          <span>{isNativeView ? filterPeriodValue : date}</span>
+          <span>{matchLabels[match]}</span>
         </div>
       </header>
 
-      <section className="source-tabs" aria-label="榜单来源">
+      <section className="source-tabs source-segment" aria-label="榜单来源">
         {sourceTabs.map(([value, label]) => (
           <button
             className={source === value ? "active" : ""}
@@ -390,50 +420,52 @@ export default function DashboardClient({
         ))}
       </section>
 
-      <section className="toolbar" aria-label="榜单筛选">
-        <label>
-          {isNativeView ? "榜期" : "日期"}
-          <input type="date" value={date} onChange={(event) => updatePrimaryDateFilter(event.target.value)} />
-        </label>
-        <label>
-          匹配状态
-          <select value={match} onChange={(event) => setMatch(event.target.value)}>
-            {Object.entries(matchLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          数据性质
-          <select value={dataKind} onChange={(event) => setDataKind(event.target.value)}>
-            {Object.entries(dataKindLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {isNativeView ? (
-          <button className="primary-button compact" disabled={loading} onClick={importNativeRankings}>
-            <Download size={16} />
-            导入站内原生短剧 Excel
-          </button>
-        ) : null}
-        {isDataEyeView ? (
-          <>
-            <button
-              className="ghost-button compact"
-              disabled={loading || !canCollectLive}
-              title={canCollectLive ? "" : "先完成同一日期、同一来源的预检"}
-              onClick={() => collect("live", liveSource)}
-            >
-              采集当前筛选{sourceLabels[liveSource]}
+      <section className="filter-panel" aria-label="核心筛选">
+        <div className="filter-grid">
+          <label>
+            {isNativeView ? "榜期" : "日期"}
+            <input type="date" value={date} onChange={(event) => updatePrimaryDateFilter(event.target.value)} />
+          </label>
+          <div className="segmented-field">
+            <span className="field-label">匹配状态</span>
+            <div className="segmented-control" role="tablist" aria-label="匹配状态">
+              {Object.entries(matchLabels).map(([value, label]) => (
+                <button
+                  className={match === value ? "active" : ""}
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={match === value}
+                  onClick={() => setMatch(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label>
+            数据范围
+            <select value={dataKind} onChange={(event) => setDataKind(event.target.value)}>
+              {Object.entries(dataKindLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="filter-actions">
+          {isNativeView ? (
+            <button className="primary-button" disabled={loading} onClick={importNativeRankings}>
+              <Download size={16} />
+              导入站内原生短剧 Excel
             </button>
-            <span className="live-gate-status">{liveGateText}</span>
-          </>
-        ) : null}
+          ) : (
+            <span className="helper-note" data-collection-ready={typeof collect === "function" ? "true" : "false"}>
+              {collectionBoundaryText}
+            </span>
+          )}
+        </div>
       </section>
 
       <StatusMessage message={message} />
@@ -452,52 +484,54 @@ export default function DashboardClient({
       ) : null}
 
       {isDataEyeView ? (
-      <section className="rank-type-module" aria-label="榜单类型">
-        <div className="rank-type-tabs" role="tablist" aria-label="切换榜单类型">
-          <button
-            className={rankType === "all" ? "active" : ""}
-            type="button"
-            role="tab"
-            aria-selected={rankType === "all"}
-            onClick={() => updateRankType("all")}
-          >
-            全部榜单
-          </button>
-          {namedRankTypeOptions.map(([value, label]) => (
+        <section className="rank-type-module" aria-label="榜单类型">
+          <div className="rank-type-tabs" role="tablist" aria-label="切换榜单类型">
             <button
-              className={rankType === value ? "active" : ""}
-              key={value}
+              className={rankType === "all" ? "active" : ""}
               type="button"
               role="tab"
-              aria-selected={rankType === value}
-              onClick={() => updateRankType(value)}
+              aria-selected={rankType === "all"}
+              onClick={() => updateRankType("all")}
             >
-              {label}
+              全部榜单
             </button>
-          ))}
-        </div>
-      </section>
-      ) : null}
-
-      <section className="table-panel">
-        <div className="panel-title">
-          {shouldShowPeriodSwitch ? (
-          <div className="period-switch" role="tablist" aria-label="切换榜单周期">
-            {rankPeriodOptions.map(([value, label]) => (
+            {namedRankTypeOptions.map(([value, label]) => (
               <button
-                className={rankPeriod === value ? "active" : ""}
+                className={rankType === value ? "active" : ""}
                 key={value}
                 type="button"
                 role="tab"
-                aria-selected={rankPeriod === value}
-                onClick={() => setRankPeriod(value)}
+                aria-selected={rankType === value}
+                onClick={() => updateRankType(value)}
               >
                 {label}
               </button>
             ))}
           </div>
-          ) : null}
-          <span>{loading ? "处理中" : "已同步本地 SQLite"}</span>
+        </section>
+      ) : null}
+
+      <section className={`table-panel ${refreshing ? "is-refreshing" : ""}`} aria-busy={refreshing}>
+        <div className="panel-title">
+          {shouldShowPeriodSwitch ? (
+            <div className="period-switch" role="tablist" aria-label="切换榜单周期">
+              {rankPeriodOptions.map(([value, label]) => (
+                <button
+                  className={rankPeriod === value ? "active" : ""}
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={rankPeriod === value}
+                  onClick={() => setRankPeriod(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="panel-kicker">单周期榜单</span>
+          )}
+          <span>{refreshing ? "正在更新榜单" : `当前 ${visibleItems.length} 条，已匹配 ${matchedCount} 条，未匹配 ${unmatchedCount} 条`}</span>
         </div>
         <div className="table-wrap">
           <table>
@@ -515,50 +549,68 @@ export default function DashboardClient({
               </tr>
             </thead>
             <tbody>
-              {visibleItems.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.periodValue}</td>
-                  <td>{item.rank}</td>
-                  <td className="strong-cell">{item.title}</td>
-                  <td>{formatHeatValue(item.heatValue, isNativeView)}</td>
-                  <td>
-                    <span className={`badge ${item.matchStatus}`}>{item.matchStatus === "matched" ? "已匹配" : "未匹配"}</span>
+              {refreshing ? (
+                <tr>
+                  <td colSpan="9" className="table-skeleton">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
                   </td>
-                  <td>
-                    {item.matchStatus === "matched" ? (
-                      item.matchedNovelNames
-                    ) : (
-                      <Link
-                        className="table-link"
-                        href={`/novels?dramaTitle=${encodeURIComponent(item.title)}&returnTo=${encodeURIComponent(returnToRankings)}`}
-                      >
-                        去维护映射
-                      </Link>
-                    )}
-                  </td>
-                  <td>{item.matchedNovelPlatformIds || ""}</td>
-                  <td>
-                    <span className={`badge data-kind ${item.dataKind}`}>
-                      {dataKindLabels[item.dataKind] || item.dataKind}
-                    </span>
-                  </td>
-                  <td>{new Date(item.collectedAt).toLocaleString("zh-CN")}</td>
                 </tr>
-              ))}
-              {!visibleItems.length ? (
+              ) : visibleItems.length ? (
+                visibleItems.map((item) => (
+                  <tr className={item.matchStatus === "matched" ? "row-matched" : "row-unmatched"} key={item.id}>
+                    <td>{item.periodValue}</td>
+                    <td className="rank-cell">{item.rank}</td>
+                    <td className="strong-cell">{item.title}</td>
+                    <td className="heat-cell">{formatHeatValue(item.heatValue, isNativeView)}</td>
+                    <td>
+                      <span className={`badge ${item.matchStatus}`}>
+                        {item.matchStatus === "matched" ? "已匹配" : "未匹配"}
+                      </span>
+                    </td>
+                    <td>
+                      {item.matchStatus === "matched" ? (
+                        item.matchedNovelNames
+                      ) : (
+                        <Link
+                          className="table-link"
+                          href={`/novels?dramaTitle=${encodeURIComponent(item.title)}&returnTo=${encodeURIComponent(returnToRankings)}`}
+                        >
+                          去维护映射
+                        </Link>
+                      )}
+                    </td>
+                    <td>{item.matchedNovelPlatformIds || ""}</td>
+                    <td>
+                      <span className={`badge data-kind ${item.dataKind}`}>
+                        {dataKindLabels[item.dataKind] || item.dataKind}
+                      </span>
+                    </td>
+                    <td>{new Date(item.collectedAt).toLocaleString("zh-CN")}</td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
                   <td colSpan="9" className="empty-cell">
-                    当前筛选条件下暂无可展示数据。页面默认隐藏未命名的 DataEye 榜单；如需核对原始采集结果，请查看采集报告或后台查询。
+                    <div className="empty-state">
+                      <strong>当前筛选下没有榜单数据</strong>
+                      <span>可以切换匹配状态、榜期或榜单类型；如果要补齐匹配关系，请先到小说库导入或维护映射。</span>
+                    </div>
                   </td>
                 </tr>
-              ) : null}
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
       <section className="runs-panel">
-        <h2>最近采集日志</h2>
+        <div className="panel-title inline-panel-title">
+          <h2>采集记录</h2>
+          <span>最近 {runs.length} 条</span>
+        </div>
         <div className="run-list">
           {runs.map((run) => (
             <div className="run-item" key={run.id}>
@@ -579,7 +631,7 @@ export default function DashboardClient({
               </div>
             </div>
           ))}
-          {!runs.length ? <p className="muted">暂无采集日志。</p> : null}
+          {!runs.length ? <p className="muted">暂无采集记录。</p> : null}
         </div>
       </section>
     </AppShell>

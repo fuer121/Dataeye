@@ -5,12 +5,12 @@ export default function AppShell({ active, children }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div>
-          <div className="brand">剧查查榜单 MVP</div>
-          <p className="brand-subtitle">每日榜单采集与小说库匹配</p>
+          <div className="brand">榜单匹配工作台</div>
+          <p className="brand-subtitle">热门短剧与站内小说核对</p>
         </div>
         <nav className="nav">
           <Link className={active === "rankings" ? "active" : ""} href="/">
-            榜单数据
+            热门榜单
           </Link>
           <Link className={active === "novels" ? "active" : ""} href="/novels">
             小说库
