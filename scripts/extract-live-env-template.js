@@ -14,15 +14,15 @@ import {
   writeMarkdown
 } from "./capture-utils.js";
 import {
-  compareDataEyeMotionComicRequests,
+  compareDataEyeRankingRequests,
   getDataEyeRequestRankingDate,
-  isDataEyeMotionComicRequest
+  isDataEyeRankingRequest
 } from "../lib/dataeye-capture-target.js";
 
 const args = parseArgs(process.argv.slice(2));
 const files = listCaptureFiles();
 const { requests, errors } = parseCaptureFiles(files);
-const candidates = requests.filter((request) => request.isLikelyRanking && isDataEyeMotionComicRequest(request)).sort(compareDataEyeMotionComicRequests);
+const candidates = requests.filter((request) => request.isLikelyRanking && isDataEyeRankingRequest(request)).sort(compareDataEyeRankingRequests);
 const selected = candidates[0] || null;
 const localEnvPath = args.writeLocal && selected ? writeLocalEnvFile(selected) : "";
 const output = writeMarkdown(
@@ -57,7 +57,7 @@ function renderTemplate({ files, requests, errors, selected, localEnvPath }) {
 
 ## 状态
 
-未找到 \`playlet-applet.dataeye.com/playlet/motionComic\` 目标请求。
+未找到 \`playlet-applet.dataeye.com\` DataEye 榜单目标请求。
 
 | 项 | 数量 |
 | --- | ---: |

@@ -13,7 +13,7 @@ import {
   parseCaptureFiles,
   rel
 } from "./capture-utils.js";
-import { getDataEyeRequestRankingDate, isDataEyeMotionComicRequest } from "../lib/dataeye-capture-target.js";
+import { getDataEyeRequestRankingDate, isDataEyeRankingRequest } from "../lib/dataeye-capture-target.js";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const args = parseArgs(process.argv.slice(2));
@@ -176,7 +176,7 @@ function resolveScriptPath(envKey, fileName) {
 function inferLatestDataEyeRankingDate() {
   const { requests } = parseCaptureFiles(listCaptureFiles());
   const candidates = requests
-    .filter(isDataEyeMotionComicRequest)
+    .filter(isDataEyeRankingRequest)
     .map((request) => ({
       day: getDataEyeRequestRankingDate(request),
       timestamp: Date.parse(request.startedDateTime || request.capturedAt || "")

@@ -231,6 +231,67 @@ test("refresh-dataeye-login can derive a valid ranking date from a week request"
   assert.match(report, /请求日期 \| 2026-06-07/);
 });
 
+test("refresh-dataeye-login accepts the current DataEye ranking endpoints as login sources", () => {
+  const root = process.cwd();
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dataeye-refresh-current-endpoint-"));
+  const capturesDir = path.join(tempRoot, "captures");
+  fs.mkdirSync(capturesDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(capturesDir, "current.har"),
+    JSON.stringify({
+      log: {
+        entries: [
+          {
+            startedDateTime: "2026-06-11T04:37:24.000Z",
+            request: {
+              method: "GET",
+              url: "https://playlet-applet.dataeye.com/playlet/listHotRanking?pageId=1&pageSize=30&day=2026-06-10",
+              headers: [
+                { name: "authentication", value: "current-authentication-value" },
+                { name: "loginUserId", value: "650985" },
+                { name: "S", value: "test-signature-value-1234" }
+              ]
+            },
+            response: {
+              status: 200,
+              content: {
+                mimeType: "application/json",
+                text: JSON.stringify({
+                  statusCode: 200,
+                  content: [
+                    {
+                      ranking: 1,
+                      playletName: "苏太太高调离婚了",
+                      consumeNum: 1034000,
+                      playletTags: ["都市"]
+                    }
+                  ]
+                })
+              }
+            }
+          }
+        ]
+      }
+    })
+  );
+
+  const result = spawnSync(
+    "node",
+    [path.join(root, "scripts/refresh-dataeye-login.js"), "--skip-preview", "--allow-stale-capture"],
+    {
+      cwd: tempRoot,
+      encoding: "utf8"
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const localEnv = fs.readFileSync(path.join(tempRoot, ".env.local.dataeye"), "utf8");
+  assert.match(localEnv, /DATAEYE_AUTHENTICATION=current-authentication-value/);
+  const report = fs.readFileSync(path.join(tempRoot, "docs/dataeye-login-refresh.md"), "utf8");
+  assert.match(report, /请求日期 \| 2026-06-10/);
+});
+
 test("refresh-dataeye-login fails when refreshed DataEye login state cannot pass preview", () => {
   const root = process.cwd();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dataeye-refresh-preview-failed-"));

@@ -67,12 +67,25 @@ test("Feishu novel import service rejects sheets without mappable rows", async (
 
 test("novel API exposes manual update and delete endpoints", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "app/api/novels/route.js"), "utf8");
+  const importRoute = fs.readFileSync(path.join(process.cwd(), "app/api/novels/import/route.js"), "utf8");
+  const mappingImportRoute = fs.readFileSync(path.join(process.cwd(), "app/api/novels/import/mappings/route.js"), "utf8");
 
+  assert.match(source, /listNovels/);
+  assert.match(source, /items: listNovelMappings/);
+  assert.match(source, /novels: listNovels/);
   assert.match(source, /export async function PATCH/);
   assert.match(source, /updateNovelMapping/);
   assert.match(source, /export async function DELETE/);
   assert.match(source, /deleteNovelMapping/);
   assert.match(source, /SQLITE_CONSTRAINT/);
+  assert.match(importRoute, /importNovelLibraryFromBuffer/);
+  assert.match(importRoute, /\.xlsx/);
+  assert.match(importRoute, /\.xls/);
+  assert.match(importRoute, /\.csv/);
+  assert.match(mappingImportRoute, /importNovelMappingsWorkbookFromBuffer/);
+  assert.match(mappingImportRoute, /\.xlsx/);
+  assert.match(mappingImportRoute, /\.xls/);
+  assert.doesNotMatch(mappingImportRoute, /\.csv/);
 });
 
 function clearEnv() {

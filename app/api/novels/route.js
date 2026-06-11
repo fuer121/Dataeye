@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { deleteNovelMapping, listNovelMappings, updateNovelMapping, upsertNovelMappings } from "@/lib/novels";
+import { deleteNovelMapping, listNovelMappings, listNovels, updateNovelMapping, upsertNovelMappings } from "@/lib/novels";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  return NextResponse.json({ items: listNovelMappings(searchParams.get("query") || "") });
+  const query = searchParams.get("query") || "";
+  const match = searchParams.get("match") || "all";
+  return NextResponse.json({
+    items: listNovelMappings(query),
+    novels: listNovels(query, { match })
+  });
 }
 
 export async function POST(request) {

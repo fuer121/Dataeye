@@ -5,10 +5,13 @@ import test from "node:test";
 
 test("dashboard exposes source tabs for native and DataEye views", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const sourceTabs = source.match(/const sourceTabs = \[[\s\S]*?\];/)?.[0] || "";
 
   assert.match(source, /source-tabs/);
   assert.match(source, /站内原生短剧/);
-  assert.match(source, /DataEye \/ 剧查查/);
+  assert.match(sourceTabs, /\["dataeye", "剧查查"\]/);
+  assert.doesNotMatch(sourceTabs, /DataEye \/ 剧查查/);
+  assert.match(source, /dataeye: "DataEye \/ 剧查查"/);
   assert.match(source, /source === "native"/);
   assert.match(source, /source === "dataeye"/);
 });

@@ -7,35 +7,116 @@ test("dashboard collection actions stay focused on DataEye while Hongguo is paus
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
   assert.match(source, /const liveSource = "dataeye";/);
-  assert.match(source, /const captureSource = "dataeye";/);
   assert.match(source, /isDataEyeView/);
   assert.doesNotMatch(source, /source === "hongguo" \? "hongguo" : "dataeye"/);
   assert.doesNotMatch(source, /collect\("sample", "all"\)/);
   assert.match(source, /红果（暂停推进）/);
 });
 
+test("dashboard hides DataEye capture import action while keeping the API available", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const api = fs.readFileSync(path.join(process.cwd(), "app/api/capture/import/route.js"), "utf8");
+
+  assert.doesNotMatch(source, /async function importCaptureRanking\(\)/);
+  assert.doesNotMatch(source, /const captureSource = "dataeye";/);
+  assert.doesNotMatch(source, /导入\{sourceLabels\[captureSource\]\}抓包榜单/);
+  assert.doesNotMatch(source, /fetch\("\/api\/capture\/import"/);
+  assert.match(api, /importCaptureRanking/);
+  assert.match(api, /NextResponse\.json/);
+});
+
+test("dashboard hides DataEye sample collection actions from the page", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /采集 DataEye 模拟榜单/);
+  assert.doesNotMatch(source, /collect\("sample", liveSource\)/);
+  assert.doesNotMatch(source, /RefreshCw/);
+  assert.match(source, /采集当前筛选/);
+});
+
+test("dashboard hides DataEye current-filter preview action while keeping the API available", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const api = fs.readFileSync(path.join(process.cwd(), "app/api/collect/preview/route.js"), "utf8");
+
+  assert.doesNotMatch(source, /async function previewLiveCollection/);
+  assert.doesNotMatch(source, /fetch\("\/api\/collect\/preview"/);
+  assert.doesNotMatch(source, /预检当前筛选/);
+  assert.doesNotMatch(source, /onClick=\{previewLiveCollection\}/);
+  assert.match(api, /collectRanking/);
+  assert.match(api, /collectorErrorPayload/);
+  assert.match(api, /NextResponse\.json/);
+});
+
+test("dashboard hides page header action entrances from the rankings page", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /className="header-actions"/);
+  assert.doesNotMatch(source, /上传抓包/);
+  assert.doesNotMatch(source, /生成 DataEye 抓包报告/);
+  assert.doesNotMatch(source, /导入模拟小说库/);
+  assert.doesNotMatch(source, /async function importNovels\(\)/);
+  assert.doesNotMatch(source, /async function uploadCaptureFile\(event\)/);
+  assert.doesNotMatch(source, /async function runCapturePipeline\(\)/);
+});
+
 test("unmatched rows link to novel maintenance with a safe return target", () => {
   const dashboard = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
 
-  assert.match(dashboard, /new URLSearchParams\(\{ date, source, match: "all", dataKind, rankType, rankPeriod \}\)/);
-  assert.match(dashboard, /params\.set\("periodValue", periodValue\)/);
+  assert.match(dashboard, /date: isNativeView \? filterPeriodValue : date/);
+  assert.match(dashboard, /params\.set\("periodValue", filterPeriodValue\)/);
   assert.match(dashboard, /returnTo=\$\{encodeURIComponent\(returnToRankings\)\}/);
   assert.match(novels, /getSafeReturnTo\(searchParams\.get\("returnTo"\)\)/);
   assert.match(novels, /text\.startsWith\("\/\/"\)/);
   assert.match(novels, /返回榜单核对匹配/);
 });
 
-test("novel management page supports editing and deleting mappings", () => {
+test("novel management page maintains mappings from the single library page", () => {
   const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
 
-  assert.match(novels, /method: editingId \? "PATCH" : "POST"/);
-  assert.match(novels, /function editMapping\(item\)/);
-  assert.match(novels, /function deleteMapping\(item\)/);
-  assert.match(novels, /method: "DELETE"/);
-  assert.match(novels, /更新映射/);
-  assert.match(novels, /删除/);
-  assert.match(novels, /取消编辑/);
+  assert.match(novels, /async function saveManualMapping\(event\)/);
+  assert.match(novels, /aria-label="维护小说映射"/);
+  assert.match(novels, /保存映射/);
+  assert.match(novels, /返回榜单核对匹配/);
+});
+
+test("novel management page is a single book library view with local file import", () => {
+  const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
+
+  assert.doesNotMatch(novels, /tab=library/);
+  assert.doesNotMatch(novels, /tab=mappings/);
+  assert.match(novels, /小说库/);
+  assert.doesNotMatch(novels, /短剧和小说映射关系/);
+  assert.match(novels, /导入 Excel\/CSV/);
+  assert.match(novels, /导入映射 Excel/);
+  assert.match(novels, /fetch\("\/api\/novels\/import\/mappings"/);
+  assert.match(novels, /accept="\.xlsx,\.xls,\.csv,\.json/);
+  assert.match(novels, />平台ID</);
+  assert.match(novels, />书库ID</);
+  assert.match(novels, />小说名称</);
+  assert.match(novels, />短剧\/漫剧名</);
+  assert.match(novels, />映射匹配</);
+  assert.doesNotMatch(novels, />作者</);
+  assert.doesNotMatch(novels, />分类</);
+  assert.doesNotMatch(novels, />阅读偏好</);
+  assert.doesNotMatch(novels, />操作</);
+  assert.ok(novels.indexOf(">小说名称</") < novels.indexOf(">短剧/漫剧名</"));
+  assert.ok(novels.indexOf(">短剧/漫剧名</") < novels.indexOf(">映射匹配</"));
+  assert.match(novels, /novel\.mappingMatched \? "是" : "否"/);
+  assert.match(novels, /name="match"/);
+  assert.match(novels, /value="matched"/);
+  assert.match(novels, /value="unmatched"/);
+  assert.match(novels, /placeholder="输入小说名称或短剧名称"/);
+  assert.doesNotMatch(novels, /关系类型/);
+  assert.doesNotMatch(novels, /manualRelationType/);
+  assert.match(novels, /searchParams\.get\("dramaTitle"\)/);
+  assert.match(novels, /searchParams\.get\("returnTo"\)/);
+});
+
+test("novel mapping form appears before the search toolbar", () => {
+  const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
+
+  assert.ok(novels.indexOf('aria-label="维护小说映射"') < novels.indexOf('aria-label="小说库搜索"'));
 });
 
 test("novel table action buttons have stable styling", () => {
@@ -70,14 +151,26 @@ test("dashboard renders named rank types outside the toolbar", () => {
   assert.match(source, /DATAEYE_VISIBLE_RANK_TYPE_OPTIONS/);
   assert.match(source, /namedRankTypeOptions/);
   assert.match(source, /namedDataEyeRankTypes/);
-  assert.match(rankings, /0: "漫剧热播榜"/);
-  assert.match(rankings, /1: "动态漫榜"/);
-  assert.match(rankings, /2: "真人AI榜"/);
-  assert.match(rankings, /3: "沙雕漫榜"/);
+  assert.match(rankings, /name: "红果漫剧榜"/);
+  assert.match(rankings, /name: "热力榜"/);
+  assert.match(rankings, /name: "抖音热播"/);
+  assert.match(rankings, /name: "红果榜"/);
   assert.doesNotMatch(source, /<span>榜单类型<\/span>/);
   assert.doesNotMatch(source, /rankType === "all" \? "全部榜单"/);
   assert.doesNotMatch(source, /Array\.from\(\{ length: 21 \}/);
   assert.doesNotMatch(source, /未命名榜单 rankType=\$\{value\}/);
+});
+
+test("dashboard accepts current DataEye rank type query params", () => {
+  const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
+  const rankings = fs.readFileSync(path.join(process.cwd(), "lib/dataeye-rankings.js"), "utf8");
+
+  assert.match(page, /DATAEYE_ACTIVE_RANK_TYPES/);
+  assert.match(page, /DATAEYE_ACTIVE_RANK_TYPES\.map\(\(rankType\) => String\(rankType\)\)/);
+  assert.match(rankings, /rankType: 119/);
+  assert.match(rankings, /rankType: 101/);
+  assert.match(rankings, /rankType: 103/);
+  assert.match(rankings, /rankType: 106/);
 });
 
 test("dashboard hides unnamed DataEye rank types from the visible table", () => {
@@ -121,6 +214,19 @@ test("dashboard uses table title area for period switching", () => {
   assert.match(css, /\.period-switch/);
 });
 
+test("dashboard hides period switching for single-period DataEye rank types", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const rankings = fs.readFileSync(path.join(process.cwd(), "lib/dataeye-rankings.js"), "utf8");
+
+  assert.match(rankings, /rankType: 119[\s\S]*name: "红果漫剧榜"[\s\S]*periods: \["day"\]/);
+  assert.match(source, /DATAEYE_RANKING_DEFINITIONS/);
+  assert.match(source, /singlePeriodDataEyeRankPeriods/);
+  assert.match(source, /const shouldShowPeriodSwitch = !isDataEyeView \|\| !singlePeriodDataEyeRankPeriods\.has\(String\(rankType\)\);/);
+  assert.match(source, /const singlePeriod = singlePeriodDataEyeRankPeriods\.get\(String\(rankType\)\);/);
+  assert.match(source, /setRankPeriod\(singlePeriod\);/);
+  assert.match(source, /\{shouldShowPeriodSwitch \? \(/);
+});
+
 test("dashboard hides period column from the table", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
@@ -146,16 +252,31 @@ test("dashboard hides date column from the table", () => {
   assert.match(source, /colSpan="9"/);
 });
 
-test("dashboard places data kind before collected time", () => {
+test("dashboard hides drama type column from the table", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /<th>类型<\/th>/);
+  assert.doesNotMatch(source, /<td>\{item\.dramaType\}<\/td>/);
+  assert.match(source, /colSpan="9"/);
+});
+
+test("dashboard shows matched novel platform id after matched novel names", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const novelHeaderIndex = source.indexOf("<th>对应小说名称</th>");
+  const platformHeaderIndex = source.indexOf("<th>平台 id</th>");
   const dataKindHeaderIndex = source.indexOf("<th>数据性质</th>");
   const collectedHeaderIndex = source.indexOf("<th>采集时间</th>");
+  const novelCellIndex = source.indexOf("item.matchedNovelNames");
+  const platformCellIndex = source.indexOf("item.matchedNovelPlatformIds");
   const dataKindCellIndex = source.indexOf('className={`badge data-kind ${item.dataKind}`}');
   const collectedCellIndex = source.indexOf("new Date(item.collectedAt)");
 
   assert.ok(novelHeaderIndex < dataKindHeaderIndex);
+  assert.ok(novelHeaderIndex < platformHeaderIndex);
+  assert.ok(platformHeaderIndex < dataKindHeaderIndex);
   assert.ok(dataKindHeaderIndex < collectedHeaderIndex);
+  assert.ok(novelCellIndex < platformCellIndex);
+  assert.ok(platformCellIndex < dataKindCellIndex);
   assert.ok(dataKindCellIndex < collectedCellIndex);
 });
 
@@ -207,32 +328,28 @@ test("dashboard can trigger local DataEye login refresh when auth expires", () =
   assert.doesNotMatch(api, /DATAEYE_AUTHENTICATION.*process\.env/s);
 });
 
-test("dashboard can upload capture files into the local captures folder", () => {
+test("capture upload API stays available while the dashboard hides the header upload action", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const api = fs.readFileSync(path.join(process.cwd(), "app/api/captures/upload/route.js"), "utf8");
 
-  assert.match(source, /async function uploadCaptureFile\(event\)/);
-  assert.match(source, /fetch\("\/api\/captures\/upload"/);
-  assert.match(source, /type="file"/);
-  assert.match(source, /accept="\.har,\.json,\.txt,\.curl"/);
-  assert.match(source, /上传抓包/);
-  assert.match(source, /uploadCaptureFile[\s\S]*requestCapturePipeline\(\)/);
-  assert.match(source, /payload\.pipeline/);
-  assert.match(source, /已生成 DataEye 抓包报告/);
+  assert.doesNotMatch(source, /async function uploadCaptureFile\(event\)/);
+  assert.doesNotMatch(source, /fetch\("\/api\/captures\/upload"/);
+  assert.doesNotMatch(source, /type="file"/);
+  assert.doesNotMatch(source, /accept="\.har,\.json,\.txt,\.curl"/);
+  assert.doesNotMatch(source, /上传抓包/);
   assert.match(api, /saveCaptureUpload/);
   assert.match(api, /pipeline: result\.pipeline/);
   assert.match(api, /formData\(\)/);
 });
 
-test("dashboard can run the DataEye capture pipeline without starting live collection", () => {
+test("capture pipeline API stays available while the dashboard hides the header report action", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const api = fs.readFileSync(path.join(process.cwd(), "app/api/capture/pipeline/route.js"), "utf8");
 
-  assert.match(source, /async function requestCapturePipeline\(\)/);
-  assert.match(source, /async function runCapturePipeline\(\)/);
-  assert.match(source, /fetch\("\/api\/capture\/pipeline"/);
-  assert.match(source, /生成 DataEye 抓包报告/);
-  assert.doesNotMatch(source, /async function runCapturePipeline\(\)[\s\S]{0,800}collect\("live"/);
+  assert.doesNotMatch(source, /async function requestCapturePipeline\(\)/);
+  assert.doesNotMatch(source, /async function runCapturePipeline\(\)/);
+  assert.doesNotMatch(source, /fetch\("\/api\/capture\/pipeline"/);
+  assert.doesNotMatch(source, /生成 DataEye 抓包报告/);
   assert.match(api, /source: "dataeye"/);
   assert.match(api, /loginEnvFile: "\.env\.local\.dataeye"/);
   assert.doesNotMatch(api, /hongguo/);
@@ -247,6 +364,30 @@ test("dashboard fetches collection runs for the active ranking scope", () => {
   assert.doesNotMatch(source, /fetch\("\/api\/runs"\)/);
 });
 
+test("native dashboard uses period value as the primary list filter", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
+
+  assert.match(source, /const filterPeriodValue = isNativeView \? periodValue \|\| date : periodValue;/);
+  assert.match(source, /if \(isNativeView\) \{/);
+  assert.match(source, /params\.set\("periodValue", filterPeriodValue\);/);
+  assert.match(source, /\{isNativeView \? "榜期" : "日期"\}/);
+  assert.match(source, /onChange=\{\(event\) => updatePrimaryDateFilter\(event\.target\.value\)\}/);
+  assert.match(page, /getLatestPeriodValue/);
+  assert.match(page, /initialSource === "native"/);
+}
+);
+
+test("dashboard hides the DataEye period value text filter from the toolbar", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /placeholder="全部榜期"/);
+  assert.doesNotMatch(source, /onChange=\{\(event\) => setPeriodValue\(event\.target\.value\)\}/);
+  assert.match(source, /\{isNativeView \? "榜期" : "日期"\}/);
+  assert.match(source, /params\.set\("periodValue", filterPeriodValue\);/);
+  assert.match(source, /<th>榜期<\/th>/);
+});
+
 test("dashboard syncs active filters into the browser URL", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
@@ -255,28 +396,51 @@ test("dashboard syncs active filters into the browser URL", () => {
   assert.match(source, /router\.replace\(`\$\{pathname\}\?\$\{query\}`, \{ scroll: false \}\);/);
 });
 
+test("dashboard switches source tabs to the latest available ranking scope", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const api = fs.readFileSync(path.join(process.cwd(), "app/api/rankings/latest/route.js"), "utf8");
+
+  assert.match(source, /async function loadLatestRankingScope/);
+  assert.match(source, /fetch\(`\/api\/rankings\/latest\?\$\{params\}`\)/);
+  assert.match(source, /latestScope = await loadLatestRankingScope\(nextSource/);
+  assert.match(source, /setDate\(latestScope\.date\)/);
+  assert.match(source, /setPeriodValue\(latestScope\.periodValue \|\| latestScope\.date\)/);
+  assert.match(api, /getLatestRankingDate/);
+  assert.match(api, /getLatestPeriodValue/);
+});
+
+test("dashboard defaults to matched rows only on first entry when matched rows exist", () => {
+  const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
+
+  assert.match(page, /const requestedMatch = getString\(params\.match\);/);
+  assert.match(page, /const hasExplicitMatch = MATCH_STATUSES\.has\(requestedMatch\);/);
+  assert.match(page, /const initialMatch = hasExplicitMatch \? requestedMatch : getDefaultMatchStatus\(initialRankingFilters\);/);
+  assert.match(page, /match: "matched"/);
+  assert.match(page, /DATAEYE_ACTIVE_RANK_TYPES\.includes\(Number\(row\.rankType\)\)/);
+  assert.match(page, /matchedRows\.some\(isVisibleInitialRankingRow\) \? "matched" : "all"/);
+});
+
 test("dashboard shows a visible live collection gate before confirmed preview", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
   assert.match(source, /预检通过后可落库/);
   assert.match(source, /已预检，可采集真实榜单/);
   assert.match(source, /canCollectLive \? "已预检，可采集真实榜单" : "预检通过后可落库"/);
-  assert.match(source, /const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;/);
-  assert.match(source, /全量预检通过后可一键落库/);
-  assert.match(source, /已预检，可一键采集全部榜单与周期/);
+  assert.doesNotMatch(source, /const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;/);
+  assert.doesNotMatch(source, /全量预检通过后可一键落库/);
+  assert.doesNotMatch(source, /已预检，可一键采集全部榜单与周期/);
 });
 
-test("dashboard exposes fixed full-scope DataEye preview and live actions", () => {
+test("dashboard hides fixed full-scope DataEye preview and live actions", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
-  assert.match(source, /const fullDataEyeScope = \{/);
-  assert.match(source, /rankType: "all"/);
-  assert.match(source, /period: "all"/);
-  assert.match(source, /一键全量预检 DataEye/);
-  assert.match(source, /一键全量真实采集 DataEye/);
-  assert.match(source, /onClick=\{\(\) => previewLiveCollection\(fullDataEyeScope\)\}/);
-  assert.match(source, /onClick=\{\(\) => collect\("live", liveSource, fullDataEyeScope\)\}/);
-  assert.match(source, /预检当前筛选/);
+  assert.doesNotMatch(source, /const fullDataEyeScope = \{/);
+  assert.doesNotMatch(source, /collection-action-panel/);
+  assert.doesNotMatch(source, /aria-label="DataEye 全量采集"/);
+  assert.doesNotMatch(source, /一键全量预检 DataEye/);
+  assert.doesNotMatch(source, /一键全量真实采集 DataEye/);
+  assert.doesNotMatch(source, /previewLiveCollection\(fullDataEyeScope\)/);
+  assert.doesNotMatch(source, /collect\("live", liveSource, fullDataEyeScope\)/);
   assert.match(source, /采集当前筛选/);
 });
 
@@ -290,9 +454,8 @@ test("dashboard focuses the live data view after successful live collection", ()
 });
 
 test("dashboard surfaces live preview recovery actions", () => {
-  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const api = fs.readFileSync(path.join(process.cwd(), "app/api/collect/preview/route.js"), "utf8");
 
-  assert.match(source, /formatCollectError\(payload, "真实采集预检失败"\)/);
-  assert.match(source, /payload\?\.action/);
-  assert.match(source, /下一步：\$\{payload\.action\}/);
+  assert.match(api, /collectorErrorPayload\(error\)/);
+  assert.match(api, /status: 502/);
 });

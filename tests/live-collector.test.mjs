@@ -114,6 +114,169 @@ test("collectDataEyeRanking prefers period play count add for heat value", async
   }
 });
 
+test("collectDataEyeRanking maps current DataEye endpoint rows", async () => {
+  const restore = installEnv({
+    DATAEYE_AUTHENTICATION: "auth-value",
+    DATAEYE_LOGIN_USER_ID: "650985"
+  });
+  const originalFetch = global.fetch;
+  const calls = [];
+
+  global.fetch = async (url) => {
+    const parsed = new URL(String(url));
+    calls.push(parsed);
+    assert.equal(parsed.pathname, "/playlet/selectNativePlayletPlayCountListByDate");
+    assert.equal(parsed.searchParams.get("pageId"), "1");
+    assert.equal(parsed.searchParams.get("pageSize"), "30");
+    assert.equal(parsed.searchParams.get("day"), "2026-06-11");
+
+    return new Response(
+      JSON.stringify({
+        statusCode: 200,
+        page: { pageId: 1, pageSize: 30, totalRecords: 1 },
+        content: [
+          {
+            ranking: 1,
+            playletNativeId: "dy-1001",
+            playletName: "人心比菜凉",
+            playCount: "1.2亿",
+            playCountAdd: "7486w",
+            tags: []
+          }
+        ]
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  };
+
+  try {
+    const rows = await collectDataEyeRanking({
+      rankingDate: "2026-06-11",
+      rankType: "103",
+      period: "day"
+    });
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].rankType, 103);
+    assert.equal(rows[0].rankTypeName, "抖音热播");
+    assert.equal(rows[0].rankPeriod, "day");
+    assert.equal(rows[0].periodValue, "2026-06-11");
+    assert.equal(rows[0].rankingDate, "2026-06-11");
+    assert.equal(rows[0].rank, 1);
+    assert.equal(rows[0].title, "人心比菜凉");
+    assert.equal(rows[0].heatValue, "7486w");
+    assert.equal(rows[0].dramaType, "");
+    const sourceRef = new URL(rows[0].sourceRef);
+    assert.equal(sourceRef.pathname, "/playlet/selectNativePlayletPlayCountListByDate");
+    assert.equal(sourceRef.searchParams.get("day"), "2026-06-11");
+    assert.equal(calls.length, 1);
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
+test("collectDataEyeRanking uses hot ranking day offset and period consume field", async () => {
+  const restore = installEnv({
+    DATAEYE_AUTHENTICATION: "auth-value",
+    DATAEYE_LOGIN_USER_ID: "650985"
+  });
+  const originalFetch = global.fetch;
+  const calls = [];
+
+  global.fetch = async (url) => {
+    const parsed = new URL(String(url));
+    calls.push(parsed);
+    assert.equal(parsed.pathname, "/playlet/listHotRanking");
+    assert.equal(parsed.searchParams.get("day"), "2026-06-10");
+
+    return new Response(
+      JSON.stringify({
+        statusCode: 200,
+        page: { pageId: 1, pageSize: 30, totalRecords: 1 },
+        content: [
+          {
+            ranking: 1,
+            playletId: "hot-1001",
+            playletName: "苏太太高调离婚了",
+            totalConsumeNum: 9351000,
+            consumeNum: 1034000,
+            playletTags: ["都市", "逆袭"]
+          }
+        ]
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  };
+
+  try {
+    const rows = await collectDataEyeRanking({
+      rankingDate: "2026-06-11",
+      rankType: "101",
+      period: "day"
+    });
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].rankTypeName, "热力榜");
+    assert.equal(rows[0].periodValue, "2026-06-10");
+    assert.equal(rows[0].rankingDate, "2026-06-11");
+    assert.equal(rows[0].title, "苏太太高调离婚了");
+    assert.equal(rows[0].heatValue, "1034000");
+    assert.equal(rows[0].dramaType, "都市/逆袭");
+    assert.equal(calls.length, 1);
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
+test("collectDataEyeRanking keeps collection date while storing active endpoint week period value", async () => {
+  const restore = installEnv({
+    DATAEYE_AUTHENTICATION: "auth-value",
+    DATAEYE_LOGIN_USER_ID: "650985"
+  });
+  const originalFetch = global.fetch;
+
+  global.fetch = async (url) => {
+    const parsed = new URL(String(url));
+    assert.equal(parsed.pathname, "/playlet/selectNativePlayletPlayCountListByDate");
+    assert.equal(parsed.searchParams.get("week"), "2026-06-01 ~ 2026-06-07");
+
+    return new Response(
+      JSON.stringify({
+        statusCode: 200,
+        page: { pageId: 1, pageSize: 30, totalRecords: 1 },
+        content: [
+          {
+            ranking: 1,
+            playletName: "人心比菜凉",
+            playCountAdd: "7486w",
+            tags: []
+          }
+        ]
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  };
+
+  try {
+    const rows = await collectDataEyeRanking({
+      rankingDate: "2026-06-11",
+      rankType: "103",
+      period: "week"
+    });
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].rankTypeName, "抖音热播");
+    assert.equal(rows[0].rankPeriod, "week");
+    assert.equal(rows[0].periodValue, "2026-06-01 ~ 2026-06-07");
+    assert.equal(rows[0].rankingDate, "2026-06-11");
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
 test("collectDataEyeRanking allows rows with empty tag arrays", async () => {
   const restore = installEnv({
     DATAEYE_AUTHENTICATION: "auth-value",
@@ -223,50 +386,48 @@ test("collectDataEyeRanking fetches period values and maps explicit rank type pe
   }
 });
 
-test("collectDataEyeRanking probes all rank types and skips unsupported ones", async () => {
+test("collectDataEyeRanking probes active DataEye ranking endpoints", async () => {
   const restore = installEnv({
     DATAEYE_AUTHENTICATION: "auth-value",
     DATAEYE_LOGIN_USER_ID: "650985"
   });
   const originalFetch = global.fetch;
-  const dateRankTypes = [];
+  const paths = [];
 
   global.fetch = async (url) => {
     const parsed = new URL(String(url));
-    const rankType = parsed.searchParams.get("rankType");
-
-    if (parsed.pathname === "/playlet/motionComicDate") {
-      dateRankTypes.push(Number(rankType));
-      if (rankType !== "0") {
-        return new Response(JSON.stringify({ statusCode: 404, message: "未开放榜单" }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
+    paths.push(parsed.pathname);
+    const itemByPath = {
+      "/playlet/getComicsPlayletByDate": {
+        ranking: 1,
+        playletName: "红果漫剧样例",
+        hotValueText: "1.1亿",
+        contentTypes: ["漫剧"]
+      },
+      "/playlet/listHotRanking": {
+        ranking: 1,
+        playletName: "热力样例",
+        consumeNum: 100,
+        playletTags: ["热力"]
+      },
+      "/playlet/selectNativePlayletPlayCountListByDate": {
+        ranking: 1,
+        playletName: "抖音样例",
+        playCountAdd: "90w",
+        tags: []
+      },
+      "/playlet/listHongGuoRanking": {
+        ranking: 1,
+        playletName: "红果样例",
+        hotValue: 80,
+        contentTypes: ["红果"]
       }
-
-      return new Response(
-        JSON.stringify({
-          statusCode: 200,
-          content: { day: "2026-06-06", week: "2026-06-01 ~ 2026-06-07", month: "2026-06" }
-        }),
-        { status: 200, headers: { "content-type": "application/json" } }
-      );
-    }
-
-    assert.equal(rankType, "0");
-    assert.equal(parsed.searchParams.get("day"), "2026-06-06");
+    };
     return new Response(
       JSON.stringify({
         statusCode: 200,
         page: { pageId: 1, pageSize: 30, totalRecords: 1 },
-        content: [
-          {
-            ranking: 1,
-            playletName: "全家一起搬，商圈大换血",
-            playCount: "1.9亿",
-            tags: "[\"战神归来\"]"
-          }
-        ]
+        content: [itemByPath[parsed.pathname]]
       }),
       { status: 200, headers: { "content-type": "application/json" } }
     );
@@ -274,17 +435,22 @@ test("collectDataEyeRanking probes all rank types and skips unsupported ones", a
 
   try {
     const rows = await collectDataEyeRanking({
-      rankingDate: "2026-06-06",
+      rankingDate: "2026-06-11",
       rankType: "all",
       period: "day"
     });
 
-    assert.equal(rows.length, 1);
-    assert.equal(rows[0].rankType, 0);
-    assert.equal(rows[0].rankTypeName, "漫剧热播榜");
-    assert.equal(dateRankTypes.length, 21);
-    assert.equal(dateRankTypes[0], 0);
-    assert.equal(dateRankTypes[20], 20);
+    assert.equal(rows.length, 4);
+    assert.deepEqual(
+      rows.map((row) => row.rankType),
+      [119, 101, 103, 106]
+    );
+    assert.deepEqual(paths, [
+      "/playlet/getComicsPlayletByDate",
+      "/playlet/listHotRanking",
+      "/playlet/selectNativePlayletPlayCountListByDate",
+      "/playlet/listHongGuoRanking"
+    ]);
   } finally {
     global.fetch = originalFetch;
     restore();
