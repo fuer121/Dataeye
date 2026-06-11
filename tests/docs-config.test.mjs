@@ -55,7 +55,10 @@ test("README keeps fenced code blocks balanced and mentions verified DataEye liv
   assert.match(readme, /默认只接受 fresh 抓包材料/);
   assert.match(readme, /--allow-stale-capture/);
   assert.match(readme, /不会把完整登录态值展示到页面或 API 响应中/);
-  assert.match(readme, /手动新增、编辑、删除单条映射/);
+  assert.match(readme, /导入 Excel\/CSV/);
+  assert.match(readme, /导入映射 Excel/);
+  assert.match(readme, /小说主库.*维护映射/s);
+  assert.match(readme, /小说名称.*短剧\/漫剧名称/s);
   assert.match(readme, /DATAEYE_AUTHENTICATION/);
   assert.match(readme, /FEISHU_SPREADSHEET_TOKEN/);
   assert.equal(packageJson.scripts["dataeye:refresh-login"], "node scripts/refresh-dataeye-login.js");

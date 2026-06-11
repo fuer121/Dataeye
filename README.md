@@ -37,7 +37,7 @@ SQLITE_PATH=./data/local.sqlite npm run dev
 ## 页面
 
 - `/`：榜单数据页，默认展示本地已有的最新榜单日期，支持日期、来源、匹配状态、数据性质、榜单类型、周期和榜期筛选，展示来源标识、数据性质、榜单类型、周期和榜期，也支持手动触发采集。数据性质包括模拟、抓包导入和真实 live。登录态过期或最新 DataEye 抓包为 fresh 时，页面会显示 `刷新登录态并预检` 操作入口；它只刷新本地 `.env.local.dataeye` 并执行预检，不会自动落库。
-- `/novels`：小说库页面，支持搜索小说名、短剧/漫剧名，导入模拟映射，上传 CSV/JSON 映射文件，同步飞书电子表格，并手动新增、编辑、删除单条映射。
+- `/novels`：小说库页面，支持上传本地 Excel/CSV/JSON 小说主库，也支持单独上传映射 Excel，展示小说主库表格，并在同一页面按小说维护对应短剧/漫剧映射。
 
 可以用查询参数直接打开某个筛选视图，例如查看已落库的 DataEye 真实榜单：
 
@@ -68,9 +68,8 @@ curl http://localhost:3000/api/status
 
 页面上可以点击：
 
-- `导入模拟小说库`
-- 小说库页的 `导入 CSV/JSON`
-- 小说库页的 `同步飞书表格`
+- 小说库页的 `导入 Excel/CSV`
+- 小说库页的 `导入映射 Excel`
 - `采集 DataEye 模拟榜单`
 - `导入抓包榜单`
 - `上传抓包`
@@ -78,7 +77,10 @@ curl http://localhost:3000/api/status
 也可以直接请求 API：
 
 ```bash
-curl -X POST http://localhost:3000/api/novels/import
+curl -X POST http://localhost:3000/api/novels/import \
+  -F "file=@./data/books.xlsx"
+curl -X POST http://localhost:3000/api/novels/import/mappings \
+  -F "file=@./assess/小说短剧漫剧映射.xlsx"
 curl -X POST http://localhost:3000/api/collect \
   -H 'Content-Type: application/json' \
   -d '{"date":"2026-06-05","source":"all","mode":"sample"}'
@@ -339,7 +341,7 @@ npm run capture:import -- --date 2026-06-05 --source dataeye
 npm run capture:spec
 ```
 
-## 飞书小说库
+## 小说库
 
 需求中的飞书表格地址：
 
@@ -347,9 +349,42 @@ npm run capture:spec
 https://x0sgcptncj.feishu.cn/wiki/Cm9QwkKCsi7kSvk8ApFcMRY4nHc?from=from_copylink
 ```
 
-当前 MVP 支持三种小说库导入方式：
+当前 `/novels` 页面以本地 Excel/CSV/JSON 小说主库为主输入。上传后会直接写入 `novels` 表，不做二次确认。页面也提供独立的 `导入映射 Excel` 入口，用于维护小说和短剧/漫剧的对应关系。
 
-- 页面按钮导入模拟数据，用于本地验证匹配链路。
+当前本地小说主库导出支持以下中文表头：
+
+```text
+平台ID,书库ID,书名,作者,一级分类,二级分类,阅读偏好
+```
+
+也兼容 `小说名称`、`小说名` 作为小说名表头。重复导入时优先按 `书库ID` 更新；缺少 `书库ID` 时按归一化小说名去重。如果文件同时包含 `短剧/漫剧名称`，导入小说主库的同时会同步写入 `novel_mappings` 映射表。
+
+映射 Excel 读取第一个工作表，支持以下表头：
+
+```text
+小说名称,短剧/漫剧名称
+```
+
+也兼容 `小说名`、`书名`、`短剧/漫剧名`、`短剧名称`、`漫剧名称`。映射 Excel 中不存在于小说主库的小说会自动创建最小小说行，平台 ID、书库 ID、作者、分类和阅读偏好留空。
+
+`/novels` 页面表格字段包括：
+
+- 平台ID
+- 书库ID
+- 小说名称
+- 作者
+- 分类
+- 阅读偏好
+- 短剧/漫剧名
+- 映射匹配
+- 最近更新时间
+
+点击某行 `维护映射` 会把小说名称带入页面上的映射表单，填写短剧/漫剧名称后保存到 `novel_mappings`。榜单页未匹配作品点击 `去维护映射` 后，会自动带入短剧/漫剧名称，并保留返回当前榜单筛选条件的入口，方便保存后核对匹配结果。同一小说和同一短剧/漫剧重复保存会更新关系类型和来源，不会新增重复映射。
+
+小说列表默认优先展示已映射小说；`短剧/漫剧名` 多个映射用 `、` 连接，`映射匹配` 显示 `是/否`。
+
+旧的飞书/CSV 映射导入脚本仍保留用于批量维护 `novel_mappings`：
+
 - 将飞书表格导出为 CSV 或 JSON 后，用命令导入本地 SQLite。
 - 通过飞书开放平台读取电子表格 range 后导入本地 SQLite。
 
@@ -397,23 +432,21 @@ npm run novels:import:feishu
 npm run novels:import:feishu -- --spreadsheet <spreadsheet_token> --sheet <sheet_id> --range A:D
 ```
 
-也可以在 `/novels` 页面点击 `同步飞书表格`，页面会调用同一套服务端导入逻辑。缺少飞书配置时会显示明确错误，不会写入空映射。
 如果 range 为空或表头不包含可识别的小说名、短剧/漫剧名字段，导入会失败并提示检查表头，不会把 `0` 条映射误报为同步成功。
 
-导入后写入 `novel_mappings` 表，字段至少包括：
+映射导入后写入 `novel_mappings` 表，字段至少包括：
 
 - 小说名称
 - 短剧/漫剧名称
 - 对应关系类型
 - 来源标识
 
-也可以在 `/novels` 页面直接填写小说名称和短剧/漫剧名称，保存单条映射；榜单页未匹配作品可点击 `去维护映射` 自动带入短剧/漫剧名称，并保留返回当前日期、来源和数据性质的榜单入口，方便保存后核对匹配结果。同一小说和同一短剧/漫剧重复保存会更新关系类型和来源，不会新增重复映射。列表中的已有映射可直接编辑或删除，删除后对应榜单会恢复为未匹配。
-
 ## 数据表
 
 核心表：
 
 - `ranking_entries`：榜单明细，包含来源、日期、排名、作品名、热度值、类型、来源标识、采集时间。
+- `novels`：小说主库，包含平台 ID、书库 ID、小说名、作者、分类、阅读偏好和更新时间。
 - `novel_mappings`：小说与短剧/漫剧映射。
 - `collection_runs`：采集日志，记录成功、失败、插入数量和跳过数量。
 
@@ -423,7 +456,7 @@ npm run novels:import:feishu -- --spreadsheet <spreadsheet_token> --sheet <sheet
 - 已支持将 HAR 中的剧查查榜单响应导入为 `抓包导入` 数据，用于页面核对；它不等同于 live 采集成功。
 - 红果真实采集已暂停推进；后续如需恢复，需要先确认榜单入口、请求参数和字段结构，抓包准备见 `docs/hongguo-capture-runbook.md`。
 - 当前不做风控绕过，不硬编码登录态。
-- 小说库支持飞书导出 CSV/JSON 导入，也支持通过飞书 OpenAPI 读取电子表格；但需要提供飞书应用凭证和实际电子表格 token。
+- 小说库页面支持本地 Excel/CSV/JSON 主库导入和独立映射 Excel 导入；飞书 OpenAPI 目前保留为映射导入脚本，不在页面作为主入口展示。
 - 匹配策略当前是精确匹配优先，已保留名称归一化和后续模糊匹配扩展位置。
 
 ## 验证

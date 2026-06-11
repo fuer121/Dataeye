@@ -26,16 +26,38 @@ test("unmatched rows link to novel maintenance with a safe return target", () =>
   assert.match(novels, /返回榜单核对匹配/);
 });
 
-test("novel management page supports editing and deleting mappings", () => {
+test("novel management page maintains mappings from the single library page", () => {
   const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
 
-  assert.match(novels, /method: editingId \? "PATCH" : "POST"/);
-  assert.match(novels, /function editMapping\(item\)/);
-  assert.match(novels, /function deleteMapping\(item\)/);
-  assert.match(novels, /method: "DELETE"/);
-  assert.match(novels, /更新映射/);
-  assert.match(novels, /删除/);
-  assert.match(novels, /取消编辑/);
+  assert.match(novels, /function selectNovelForMapping\(novel\)/);
+  assert.match(novels, /async function saveManualMapping\(event\)/);
+  assert.match(novels, /维护映射/);
+  assert.match(novels, /保存映射/);
+  assert.match(novels, /返回榜单核对匹配/);
+});
+
+test("novel management page is a single book library view with local file import", () => {
+  const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
+
+  assert.doesNotMatch(novels, /tab=library/);
+  assert.doesNotMatch(novels, /tab=mappings/);
+  assert.match(novels, /小说库/);
+  assert.doesNotMatch(novels, /短剧和小说映射关系/);
+  assert.match(novels, /导入 Excel\/CSV/);
+  assert.match(novels, /导入映射 Excel/);
+  assert.match(novels, /fetch\("\/api\/novels\/import\/mappings"/);
+  assert.match(novels, /accept="\.xlsx,\.xls,\.csv,\.json/);
+  assert.match(novels, />平台ID</);
+  assert.match(novels, />书库ID</);
+  assert.match(novels, />小说名称</);
+  assert.match(novels, />作者</);
+  assert.match(novels, />阅读偏好</);
+  assert.match(novels, />短剧\/漫剧名</);
+  assert.match(novels, />映射匹配</);
+  assert.match(novels, /novel\.mappingMatched \? "是" : "否"/);
+  assert.match(novels, /aria-label="维护映射"/);
+  assert.match(novels, /searchParams\.get\("dramaTitle"\)/);
+  assert.match(novels, /searchParams\.get\("returnTo"\)/);
 });
 
 test("novel table action buttons have stable styling", () => {
