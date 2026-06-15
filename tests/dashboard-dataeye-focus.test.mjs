@@ -6,9 +6,11 @@ import test from "node:test";
 test("dashboard collection actions stay focused on DataEye while Hongguo is paused", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
-  assert.match(source, /const liveSource = "dataeye";/);
+  assert.match(source, /const sourceTabs = \[/);
+  assert.match(source, /\["dataeye", "剧查查"\]/);
   assert.match(source, /isDataEyeView/);
   assert.doesNotMatch(source, /source === "hongguo" \? "hongguo" : "dataeye"/);
+  assert.doesNotMatch(source, /\["hongguo",/);
   assert.doesNotMatch(source, /collect\("sample", "all"\)/);
   assert.match(source, /红果（暂停推进）/);
 });
@@ -31,7 +33,7 @@ test("dashboard hides DataEye sample collection actions from the page", () => {
   assert.doesNotMatch(source, /采集 DataEye 模拟榜单/);
   assert.doesNotMatch(source, /collect\("sample", liveSource\)/);
   assert.doesNotMatch(source, /RefreshCw/);
-  assert.match(source, /采集当前筛选/);
+  assert.doesNotMatch(source, /采集当前筛选/);
 });
 
 test("dashboard hides DataEye current-filter preview action while keeping the API available", () => {
@@ -59,13 +61,33 @@ test("dashboard hides page header action entrances from the rankings page", () =
   assert.doesNotMatch(source, /async function runCapturePipeline\(\)/);
 });
 
-test("unmatched rows link to novel maintenance with a safe return target", () => {
+test("dashboard uses segmented controls for match status filtering", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.match(source, /className="segmented-control"/);
+  assert.match(source, /role="radiogroup" aria-label="匹配状态"/);
+  assert.match(source, /role="radio"/);
+  assert.match(source, /onClick=\{\(\) => setMatch\(value\)\}/);
+  assert.doesNotMatch(source, /<select value=\{match\}/);
+});
+
+test("dashboard hides data kind filter and table column while keeping query support", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+
+  assert.doesNotMatch(source, /<select value=\{dataKind\}/);
+  assert.doesNotMatch(source, /onChange=\{\(event\) => setDataKind\(event\.target\.value\)\}/);
+  assert.doesNotMatch(source, /<th>数据性质<\/th>/);
+  assert.doesNotMatch(source, /className=\{`badge data-kind \$\{item\.dataKind\}`\}/);
+  assert.match(source, /const \[dataKind, setDataKind\] = useState\(initialDataKind\);/);
+  assert.match(source, /const params = new URLSearchParams\(\{ source, match, dataKind, rankType, rankPeriod \}\);/);
+});
+
+test("novel maintenance page keeps a safe return target", () => {
   const dashboard = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const novels = fs.readFileSync(path.join(process.cwd(), "components/NovelsClient.jsx"), "utf8");
 
-  assert.match(dashboard, /date: isNativeView \? filterPeriodValue : date/);
-  assert.match(dashboard, /params\.set\("periodValue", filterPeriodValue\)/);
-  assert.match(dashboard, /returnTo=\$\{encodeURIComponent\(returnToRankings\)\}/);
+  assert.doesNotMatch(dashboard, /returnToRankings/);
+  assert.doesNotMatch(dashboard, /去维护映射/);
   assert.match(novels, /getSafeReturnTo\(searchParams\.get\("returnTo"\)\)/);
   assert.match(novels, /text\.startsWith\("\/\/"\)/);
   assert.match(novels, /返回榜单核对匹配/);
@@ -104,8 +126,10 @@ test("novel management page is a single book library view with local file import
   assert.ok(novels.indexOf(">短剧/漫剧名</") < novels.indexOf(">映射匹配</"));
   assert.match(novels, /novel\.mappingMatched \? "是" : "否"/);
   assert.match(novels, /name="match"/);
-  assert.match(novels, /value="matched"/);
-  assert.match(novels, /value="unmatched"/);
+  assert.match(novels, /className="segmented-control"/);
+  assert.match(novels, /\["matched", "是"\]/);
+  assert.match(novels, /\["unmatched", "否"\]/);
+  assert.match(novels, /role="radio"/);
   assert.match(novels, /placeholder="输入小说名称或短剧名称"/);
   assert.doesNotMatch(novels, /关系类型/);
   assert.doesNotMatch(novels, /manualRelationType/);
@@ -127,11 +151,15 @@ test("novel table action buttons have stable styling", () => {
   assert.match(css, /\.table-action\.danger/);
 });
 
-test("dashboard does not style failed collection runs as success", () => {
+test("dashboard renders collection run status from the stored run result", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
-  assert.match(source, /const hasFailedRun = runs\.some\(\(run\) => run\.status === "failed"\);/);
-  assert.match(source, /type: response\.ok && !hasFailedRun \? "success" : "warning"/);
+  assert.match(source, /const runStatusLabels = \{/);
+  assert.match(source, /failed: "失败"/);
+  assert.match(source, /<span className=\{`dot \$\{run\.status\}`\} \/>/);
+  assert.match(source, /<span className=\{`badge run-status \$\{run\.status\}`\}>\{runStatusLabels\[run\.status\] \|\| run\.status\}<\/span>/);
+  assert.doesNotMatch(source, /hasFailedRun/);
+  assert.doesNotMatch(source, /type: response\.ok && !hasFailedRun \? "success" : "warning"/);
 });
 
 test("dashboard does not render summary statistic cards", () => {
@@ -198,7 +226,7 @@ test("dashboard hides rank type column from the table", () => {
   assert.match(source, /aria-label="榜单类型"/);
   assert.doesNotMatch(source, /<th>榜单类型<\/th>/);
   assert.doesNotMatch(source, /item\.rankTypeName \|\| rankTypeLabels\[item\.rankType\]/);
-  assert.match(source, /colSpan="9"/);
+  assert.match(source, /colSpan="7"/);
 });
 
 test("dashboard uses table title area for period switching", () => {
@@ -233,7 +261,7 @@ test("dashboard hides period column from the table", () => {
   assert.match(source, /aria-label="切换榜单周期"/);
   assert.doesNotMatch(source, /<th>周期<\/th>/);
   assert.doesNotMatch(source, /rankPeriodLabels\[item\.rankPeriod\] \|\| item\.rankPeriod/);
-  assert.match(source, /colSpan="9"/);
+  assert.match(source, /colSpan="7"/);
 });
 
 test("dashboard hides source column from the table", () => {
@@ -241,7 +269,7 @@ test("dashboard hides source column from the table", () => {
 
   assert.doesNotMatch(source, /<th>来源<\/th>/);
   assert.doesNotMatch(source, /\{sourceLabels\[item\.source\]\}/);
-  assert.match(source, /colSpan="9"/);
+  assert.match(source, /colSpan="7"/);
 });
 
 test("dashboard hides date column from the table", () => {
@@ -249,7 +277,7 @@ test("dashboard hides date column from the table", () => {
 
   assert.doesNotMatch(source, /<th>日期<\/th>/);
   assert.doesNotMatch(source, /<td>\{item\.rankingDate\}<\/td>/);
-  assert.match(source, /colSpan="9"/);
+  assert.match(source, /colSpan="7"/);
 });
 
 test("dashboard hides drama type column from the table", () => {
@@ -257,27 +285,24 @@ test("dashboard hides drama type column from the table", () => {
 
   assert.doesNotMatch(source, /<th>类型<\/th>/);
   assert.doesNotMatch(source, /<td>\{item\.dramaType\}<\/td>/);
-  assert.match(source, /colSpan="9"/);
+  assert.match(source, /colSpan="7"/);
 });
 
-test("dashboard shows matched novel platform id after matched novel names", () => {
+test("dashboard shows matched novel platform id after match status", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
-  const novelHeaderIndex = source.indexOf("<th>对应小说名称</th>");
+  const matchHeaderIndex = source.indexOf("<th>是否匹配小说</th>");
   const platformHeaderIndex = source.indexOf("<th>平台 id</th>");
-  const dataKindHeaderIndex = source.indexOf("<th>数据性质</th>");
   const collectedHeaderIndex = source.indexOf("<th>采集时间</th>");
-  const novelCellIndex = source.indexOf("item.matchedNovelNames");
+  const matchCellIndex = source.indexOf('className={`badge ${item.matchStatus}`}');
   const platformCellIndex = source.indexOf("item.matchedNovelPlatformIds");
-  const dataKindCellIndex = source.indexOf('className={`badge data-kind ${item.dataKind}`}');
   const collectedCellIndex = source.indexOf("new Date(item.collectedAt)");
 
-  assert.ok(novelHeaderIndex < dataKindHeaderIndex);
-  assert.ok(novelHeaderIndex < platformHeaderIndex);
-  assert.ok(platformHeaderIndex < dataKindHeaderIndex);
-  assert.ok(dataKindHeaderIndex < collectedHeaderIndex);
-  assert.ok(novelCellIndex < platformCellIndex);
-  assert.ok(platformCellIndex < dataKindCellIndex);
-  assert.ok(dataKindCellIndex < collectedCellIndex);
+  assert.doesNotMatch(source, /<th>对应小说名称<\/th>/);
+  assert.doesNotMatch(source, /item\.matchedNovelNames/);
+  assert.ok(matchHeaderIndex < platformHeaderIndex);
+  assert.ok(platformHeaderIndex < collectedHeaderIndex);
+  assert.ok(matchCellIndex < platformCellIndex);
+  assert.ok(platformCellIndex < collectedCellIndex);
 });
 
 test("dashboard uses local MVP status only for recovery guidance", () => {
@@ -420,12 +445,19 @@ test("dashboard defaults to matched rows only on first entry when matched rows e
   assert.match(page, /matchedRows\.some\(isVisibleInitialRankingRow\) \? "matched" : "all"/);
 });
 
-test("dashboard shows a visible live collection gate before confirmed preview", () => {
+test("dashboard hides DataEye current-filter live action while keeping the API available", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+  const api = fs.readFileSync(path.join(process.cwd(), "app/api/collect/route.js"), "utf8");
 
-  assert.match(source, /预检通过后可落库/);
-  assert.match(source, /已预检，可采集真实榜单/);
-  assert.match(source, /canCollectLive \? "已预检，可采集真实榜单" : "预检通过后可落库"/);
+  assert.doesNotMatch(source, /采集当前筛选/);
+  assert.doesNotMatch(source, /fetch\("\/api\/collect"/);
+  assert.doesNotMatch(source, /live-gate-status/);
+  assert.doesNotMatch(css, /\.live-gate-status/);
+  assert.doesNotMatch(source, /canCollectLive/);
+  assert.doesNotMatch(source, /预检通过后可落库/);
+  assert.match(api, /runCollection/);
+  assert.match(api, /confirmedPreview/);
   assert.doesNotMatch(source, /const canCollectFullLive = confirmedLivePreviewKey === fullLivePreviewKey;/);
   assert.doesNotMatch(source, /全量预检通过后可一键落库/);
   assert.doesNotMatch(source, /已预检，可一键采集全部榜单与周期/);
@@ -441,16 +473,7 @@ test("dashboard hides fixed full-scope DataEye preview and live actions", () => 
   assert.doesNotMatch(source, /一键全量真实采集 DataEye/);
   assert.doesNotMatch(source, /previewLiveCollection\(fullDataEyeScope\)/);
   assert.doesNotMatch(source, /collect\("live", liveSource, fullDataEyeScope\)/);
-  assert.match(source, /采集当前筛选/);
-});
-
-test("dashboard focuses the live data view after successful live collection", () => {
-  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
-
-  assert.match(source, /if \(mode === "live" && response\.ok && !hasFailedRun\)/);
-  assert.match(source, /setSource\(collectSource\);/);
-  assert.match(source, /setDataKind\("live"\);/);
-  assert.match(source, /setMatch\("all"\);/);
+  assert.doesNotMatch(source, /采集当前筛选/);
 });
 
 test("dashboard surfaces live preview recovery actions", () => {

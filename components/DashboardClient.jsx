@@ -1,7 +1,6 @@
 "use client";
 
 import { Download } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
@@ -31,13 +30,6 @@ const runStatusLabels = {
 };
 
 const runModeLabels = {
-  sample: "模拟",
-  capture: "抓包导入",
-  live: "真实 live"
-};
-
-const dataKindLabels = {
-  all: "全部性质",
   sample: "模拟",
   capture: "抓包导入",
   live: "真实 live"
@@ -87,7 +79,6 @@ export default function DashboardClient({
   const [mvpStatus, setMvpStatus] = useState(initialMvpStatus);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [confirmedLivePreviewKey, setConfirmedLivePreviewKey] = useState("");
   const isNativeView = source === "native";
   const isDataEyeView = source === "dataeye";
   const filterPeriodValue = isNativeView ? periodValue || date : periodValue;
@@ -114,19 +105,6 @@ export default function DashboardClient({
     });
     return params.toString();
   }, [date, source, dataKind, filterPeriodValue, isNativeView]);
-
-  const returnToRankings = useMemo(() => {
-    const params = new URLSearchParams({
-      date: isNativeView ? filterPeriodValue : date,
-      source,
-      match: "all",
-      dataKind,
-      rankType,
-      rankPeriod
-    });
-    if (filterPeriodValue) params.set("periodValue", filterPeriodValue);
-    return `/?${params.toString()}`;
-  }, [date, source, dataKind, rankType, rankPeriod, filterPeriodValue, isNativeView]);
 
   const latestPreview = mvpStatus?.dataeye?.latestPreview;
   const latestCapture = mvpStatus?.dataeye?.latestCapture;
@@ -218,7 +196,6 @@ export default function DashboardClient({
     setSource(nextSource);
     setMatch("all");
     setRankType(nextRankType);
-    setConfirmedLivePreviewKey("");
     if (latestScope.date) {
       setDate(latestScope.date);
     }
@@ -244,66 +221,6 @@ export default function DashboardClient({
       setRankPeriod(singlePeriod);
     }
   }
-
-  async function collect(mode = "sample", collectSource = source, scope = {}) {
-    const targetRankType = scope.rankType || rankType;
-    const targetPeriod = scope.period || rankPeriod;
-    if (mode === "live") {
-      const requestedPreviewKey = `${date}:${collectSource}:${targetRankType}:${targetPeriod}`;
-      if (confirmedLivePreviewKey !== requestedPreviewKey) {
-        setMessage({
-          type: "warning",
-          text: "请先完成同一日期、同一来源的真实采集预检，核对榜单行后再落库。"
-        });
-        return;
-      }
-    }
-
-    setLoading(true);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/collect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date,
-          source: collectSource,
-          mode,
-          confirmedPreview: mode === "live",
-          rankType: targetRankType,
-          period: targetPeriod
-        })
-      });
-      const payload = await response.json();
-      await loadData();
-
-      const runs = payload.runs || [];
-      const hasFailedRun = runs.some((run) => run.status === "failed");
-      const text = runs.map((run) => `${sourceLabels[run.source]}：${run.message}`).join(" ");
-      setMessage({
-        type: response.ok && !hasFailedRun ? "success" : "warning",
-        text: text || "采集请求已完成。"
-      });
-      if (mode === "live" && response.ok && !hasFailedRun) {
-        setSource(collectSource);
-        setDataKind("live");
-        setMatch("all");
-      }
-      if (mode === "live" && hasFailedRun) {
-        setConfirmedLivePreviewKey("");
-      }
-    } catch (error) {
-      if (mode === "live") setConfirmedLivePreviewKey("");
-      setMessage({ type: "error", text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const liveSource = "dataeye";
-  const currentLivePreviewKey = `${date}:${liveSource}:${rankType}:${rankPeriod}`;
-  const canCollectLive = confirmedLivePreviewKey === currentLivePreviewKey;
-  const liveGateText = canCollectLive ? "已预检，可采集真实榜单" : "预检通过后可落库";
 
   async function importNativeRankings() {
     setLoading(true);
@@ -356,7 +273,6 @@ export default function DashboardClient({
       });
       const payload = await response.json();
       await loadData();
-      setConfirmedLivePreviewKey("");
       setMessage({
         type: response.ok ? "success" : "warning",
         text: `${payload.message || "DataEye 登录态刷新完成。"} ${payload.nextAction || ""}`
@@ -395,44 +311,28 @@ export default function DashboardClient({
           {isNativeView ? "榜期" : "日期"}
           <input type="date" value={date} onChange={(event) => updatePrimaryDateFilter(event.target.value)} />
         </label>
-        <label>
+        <fieldset className="filter-block match-filter">
           匹配状态
-          <select value={match} onChange={(event) => setMatch(event.target.value)}>
+          <div className="segmented-control" role="radiogroup" aria-label="匹配状态">
             {Object.entries(matchLabels).map(([value, label]) => (
-              <option key={value} value={value}>
+              <button
+                className={match === value ? "active" : ""}
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={match === value}
+                onClick={() => setMatch(value)}
+              >
                 {label}
-              </option>
+              </button>
             ))}
-          </select>
-        </label>
-        <label>
-          数据性质
-          <select value={dataKind} onChange={(event) => setDataKind(event.target.value)}>
-            {Object.entries(dataKindLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+          </div>
+        </fieldset>
         {isNativeView ? (
           <button className="primary-button compact" disabled={loading} onClick={importNativeRankings}>
             <Download size={16} />
             导入站内原生短剧 Excel
           </button>
-        ) : null}
-        {isDataEyeView ? (
-          <>
-            <button
-              className="ghost-button compact"
-              disabled={loading || !canCollectLive}
-              title={canCollectLive ? "" : "先完成同一日期、同一来源的预检"}
-              onClick={() => collect("live", liveSource)}
-            >
-              采集当前筛选{sourceLabels[liveSource]}
-            </button>
-            <span className="live-gate-status">{liveGateText}</span>
-          </>
         ) : null}
       </section>
 
@@ -508,9 +408,7 @@ export default function DashboardClient({
                 <th>短剧/漫剧名称</th>
                 <th>{isNativeView ? "消耗" : "热度值"}</th>
                 <th>是否匹配小说</th>
-                <th>对应小说名称</th>
                 <th>平台 id</th>
-                <th>数据性质</th>
                 <th>采集时间</th>
               </tr>
             </thead>
@@ -524,30 +422,13 @@ export default function DashboardClient({
                   <td>
                     <span className={`badge ${item.matchStatus}`}>{item.matchStatus === "matched" ? "已匹配" : "未匹配"}</span>
                   </td>
-                  <td>
-                    {item.matchStatus === "matched" ? (
-                      item.matchedNovelNames
-                    ) : (
-                      <Link
-                        className="table-link"
-                        href={`/novels?dramaTitle=${encodeURIComponent(item.title)}&returnTo=${encodeURIComponent(returnToRankings)}`}
-                      >
-                        去维护映射
-                      </Link>
-                    )}
-                  </td>
                   <td>{item.matchedNovelPlatformIds || ""}</td>
-                  <td>
-                    <span className={`badge data-kind ${item.dataKind}`}>
-                      {dataKindLabels[item.dataKind] || item.dataKind}
-                    </span>
-                  </td>
                   <td>{new Date(item.collectedAt).toLocaleString("zh-CN")}</td>
                 </tr>
               ))}
               {!visibleItems.length ? (
                 <tr>
-                  <td colSpan="9" className="empty-cell">
+                  <td colSpan="7" className="empty-cell">
                     当前筛选条件下暂无可展示数据。页面默认隐藏未命名的 DataEye 榜单；如需核对原始采集结果，请查看采集报告或后台查询。
                   </td>
                 </tr>
