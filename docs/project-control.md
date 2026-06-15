@@ -1,6 +1,6 @@
 # 项目总控信源
 
-更新时间：2026-06-11
+更新时间：2026-06-15
 
 本文件是项目进入优化阶段后的主控真实信源。目标变更、任务拆分、线程启动或结束、关键决策、风险升级、Git 提交与阻塞解除，都先同步到这里。
 
@@ -52,6 +52,8 @@
 | 2026-06-11 | 隐藏 DataEye 页面抓包榜单导入入口 | 当前页面已定位为真实榜单核对和当前筛选采集，抓包导入属于后台/CLI 辅助流程，继续展示会和真实 live 入口混淆 | 前端不展示 `导入 DataEye / 剧查查抓包榜单`；`/api/capture/import` 与 `npm run capture:import` 保留 |
 | 2026-06-11 | 隐藏 DataEye 页面当前筛选预检入口 | 当前页面继续收敛为榜单核对视图，预检属于后台/CLI/API 操作，继续展示会增加运营侧误触和理解成本 | 前端不展示 `预检当前筛选 DataEye / 剧查查`；`/api/collect/preview` 和 `collect:preview` 保留 |
 | 2026-06-11 | 顶层来源 Tab 文案收敛为 `剧查查` | 运营页面顶部入口需要更短、更贴近用户实际识别的小程序名称 | 仅修改来源 Tab 显示文案；底层 `source=dataeye`、DataEye 登录态、采集 API 和报告口径不变 |
+| 2026-06-14 | 站内原生短剧 BI 后台下载链路已通过 Chrome 验证 | 用户提供已登录火山引擎 ABI 仪表盘，`test`、`test 副本`、`test 副本 副本` 分别对应日榜、周榜、月榜 | 已下载到 `captures/原生短剧数据/0614` 并导入为 `rankingDate=2026-06-13`；后续定时任务需处理 Chrome 临时文件重命名、表头校验和登录态失效提示 |
+| 2026-06-15 | 站内原生短剧每日下载入库使用 Codex 本地 cron 自动化 | 用户已确认每天上午 8 点执行；当前下载链路依赖已登录 Chrome 和 Codex 浏览器能力，不适合先写死为 Next.js 服务内 scheduler | 新增 ACTIVE 自动化 `站内原生短剧每日下载入库`，每天 08:00 下载 day/week/month，校验表头后运行 `native:import`，并查询 SQLite/API 确认后台可读取新数据 |
 
 ## 任务看板
 
@@ -86,6 +88,8 @@
 | T-027 | 隐藏 DataEye 抓包榜单导入入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有抓包导入 CLI/API | `components/DashboardClient.jsx` 移除抓包导入按钮和前端函数、README CLI-only 说明、测试覆盖、主控文档同步 | 页面不再展示 `导入 DataEye / 剧查查抓包榜单`；后台 `app/api/capture/import` 保留；目标测试、lint 和浏览器验收通过 |
 | T-028 | 隐藏 DataEye 当前筛选预检入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有预检 API | `components/DashboardClient.jsx` 移除预检按钮和前端函数、README CLI/API 说明、测试覆盖、主控文档同步 | 页面不再展示 `预检当前筛选 DataEye / 剧查查`；后台 `app/api/collect/preview` 保留；目标测试、lint 和页面 HTML 验收通过 |
 | T-029 | 顶层来源 Tab 改名为剧查查 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `sourceTabs` | `components/DashboardClient.jsx` 来源 Tab 文案调整、测试覆盖、主控文档同步 | 顶层来源 Tab 显示 `剧查查`；底层 `source=dataeye` 和 `sourceLabels.dataeye` 仍保留 DataEye / 剧查查 语义 |
+| T-030 | 站内原生短剧 BI 后台下载验证 | 完成 | 总控 Agent | 已登录 Chrome、火山引擎 ABI 仪表盘 | `captures/原生短剧数据/0614/day.xlsx`、`week.xlsx`、`month.xlsx`，本地 SQLite native live 数据 | 下载日/周/月 Excel 成功；`native:import` 新增 1418 条、跳过 6 条；`2026-06-13` day/week/month 页面查询有效展示行分别为 472/473/473 条 |
+| T-031 | 站内原生短剧每日 8 点自动下载入库 | 完成 | 总控 Agent + Codex cron 自动化 | T-030、已登录 Chrome、当前 workspace | Codex 自动化 `站内原生短剧每日下载入库` | 自动化状态 ACTIVE；RRULE 每天 08:00；任务会下载三份 XLSX、校验表头、执行 `native:import`、查询 SQLite/API 确认后台读到新数据；失败时不导入 |
 
 ## 线程索引
 
@@ -95,20 +99,21 @@
 | DataEye 全量采集线程 | 验证新 4 个 DataEye 目标榜单与 day/week/month 周期 | 完成 | `.env.local.dataeye`、`captures/dataeye/2026-06-11`、SQLite | `docs/live-collection-preview.md`、`docs/live-collection-run.md`、SQLite live 数据 | 330 行预检 ready；live 落库新增 330 条；页面日期 `2026-06-11` 下日榜/周榜/月榜均可查询；`红果漫剧榜` 只确认 day，week/month 按不支持记录 |
 | 登录态稳定性线程 | 验证抓包刷新登录态和日常调度是否可靠 | 待启动 | Proxyman/Charles 抓包材料、capture scripts | 给出可稳定执行路径或阻塞原因 |
 | 原生 Excel 数据接入线程 | 将 `原生短剧数据` 或 `captures/原生短剧数据` 作为站内原生短剧来源入库并展示 | 完成 | `day.xlsx`、`week.xlsx`、`month.xlsx` | CLI/API/UI 可导入并展示；页面日期无匹配导出目录时可回退到最新完整导出目录；小说匹配复用现有精确匹配 |
+| 站内原生短剧后台下载线程 | 验证并调度从火山引擎 ABI 仪表盘下载 day/week/month Excel 并导入 | 已调度，待首个 08:00 自动运行结果 | 已登录 Chrome、dashboard 38518、三个表格菜单下载入口、Codex cron 自动化 | 三个 xlsx 可落到 `captures/原生短剧数据/<MMDD>`；自动化每天 08:00 执行下载、导入和后台读取验证 |
 | 小说库管理优化线程 | 将小说库改为本地 Excel/CSV 主库导入 + 单页映射维护，并支持独立映射 Excel 导入和映射核对筛选 | 完成 | 本地小说主库导出字段、映射 Excel、`novels`、`novel_mappings`、`/novels` 页面 | 小说主库可导入和搜索，映射 Excel 可批量写入映射，小说/短剧模糊搜索和映射状态筛选可用，榜单页回填短剧名路径保留 |
 
 ## Git 记录
 
 | 项 | 状态 |
 | --- | --- |
-| 当前工作分支 | `codex/fiction-get` |
-| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/fiction-get` |
+| 当前工作分支 | `codex/native-data-get` |
+| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/native-data-get` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 本轮提交目标为 `origin/codex/fiction-get`，PR 待创建或更新 |
+| 远端状态 | 本轮提交目标为 `origin/codex/native-data-get`，PR 待创建或更新 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
-| 最近主控提交 | T-009：固化总控职责必读文件 |
-| 本轮提交边界 | T-013 至 T-029：小说库表格与筛选简化、DataEye 新 4 榜单与页面核对优化、站内原生短剧导入目录修正、匹配平台 id、入口隐藏与来源 Tab 文案调整 |
-| 暂存说明 | `docs/capture-import.md`、`docs/dataeye-login-refresh.md`、`docs/live-collection-preview.md`、`docs/live-collection-run.md` 属运行报告，`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
+| 最近主控提交 | T-030/T-031：记录站内原生短剧后台下载验证和每日 08:00 自动化 |
+| 本轮提交边界 | T-030 至 T-031：站内原生短剧 BI 后台下载验证记录和 Codex 本地 cron 自动化状态；后续如需脱离 Codex，另开 launchd/脚本化下载代码闭环 |
+| 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
 ## 风险与阻塞清单
 
@@ -126,9 +131,12 @@
 | 未命名 rankType 被误认为已确认榜单 | 中 | 探测会入库 `rankType=4..20` | 前端只展示已命名榜单，报告保留未命名提示 |
 | DataEye 旧榜单名继续误导日常采集 | 中 | 当前日常采集目标已切到 4 个新接口，旧 `motionComic rankType=0..3` 仅保留兼容 | README、主控文档和代码源统一以 `lib/dataeye-rankings.js` 为准；新增测试覆盖新端点 |
 | 红果真实采集误启动 | 中 | 红果接口未验证 | 页面和脚本维持暂停，不进入 live |
+| Chrome 下载落到隐藏临时文件 | 中 | BI 后台下载时 Playwright download event 未触发，但 `~/Downloads/.com.google.Chrome.*` 临时文件是有效 XLSX | 自动化脚本需识别最新 Chrome 临时 XLSX、校验表头后原子移动为 `day.xlsx/week.xlsx/month.xlsx` |
+| BI 后台登录态或页面结构变化 | 高 | 当前验证依赖已登录 Chrome 页面、悬停菜单和下载弹窗 | 定时化前先实现登录态检查、页面元素兜底、下载失败提示和不落库保护 |
+| Codex 本地自动化未运行 | 中 | 当前 08:00 任务依赖 Codex 自动化服务、本机在线、Chrome 可用和 workspace 可访问 | 首次 08:00 后检查自动化运行结果；若需要无人值守系统级稳定性，再迁移到 launchd + 专用下载脚本 |
 
 ## 下一步行动
 
-1. 推送 `codex/fiction-get` 后创建或更新 PR，审查重点放在小说库映射、DataEye 新 4 榜单、站内原生短剧导入和榜单核对 UI。
-2. 运行报告和本地数据材料继续保持未提交，后续如需沉淀报告再单独开文档任务。
-3. 下一步在页面继续核对 `2026-06-11` 的 DataEye live 数据和站内原生短剧匹配结果。
+1. 首个 08:00 自动运行后检查 `captures/原生短剧数据/<MMDD>`、SQLite native live 行数和页面最新榜期是否同步更新。
+2. 如果 Codex 本地 cron 足够稳定，保持当前方案；如果需要脱离 Codex 或机器重启后强保证，再实现 launchd + 项目脚本方案。
+3. 原始 Excel、Chrome 临时下载文件和本地运行材料继续保持未提交，代码提交只包含脚本、测试和必要文档。
