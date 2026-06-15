@@ -120,9 +120,9 @@
 | 当前工作分支 | `codex/UI-upgrade` |
 | 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/UI-upgrade` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 本地新分支已创建，尚未推送 |
+| 远端状态 | 已推送 `origin/codex/UI-upgrade`，Draft PR #9 已创建：https://github.com/fuer121/Dataeye/pull/9 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
-| 最近主控提交 | T-030/T-031：记录站内原生短剧后台下载验证和每日 08:00 自动化 |
+| 最近主控提交 | T-032/T-036：UI 视觉升级、匹配状态分段切换、冗余入口和表格列隐藏 |
 | 本轮提交边界 | T-032/T-036：仅限 UI 视觉升级、匹配状态筛选交互和 DataEye 页面冗余入口隐藏，不调整采集、导入、匹配、查询或数据口径 |
 | 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
