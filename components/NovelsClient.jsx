@@ -211,14 +211,28 @@ export default function NovelsClient() {
             <input key={query} name="query" type="search" placeholder="输入小说名称或短剧名称" defaultValue={query} />
           </span>
         </label>
-        <label>
+        <fieldset className="filter-block match-filter">
           映射匹配
-          <select name="match" value={matchFilter} onChange={(event) => setMatchFilter(event.target.value)}>
-            <option value="all">全部</option>
-            <option value="matched">是</option>
-            <option value="unmatched">否</option>
-          </select>
-        </label>
+          <input type="hidden" name="match" value={matchFilter} />
+          <div className="segmented-control" role="radiogroup" aria-label="映射匹配">
+            {[
+              ["all", "全部"],
+              ["matched", "是"],
+              ["unmatched", "否"]
+            ].map(([value, label]) => (
+              <button
+                className={matchFilter === value ? "active" : ""}
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={matchFilter === value}
+                onClick={() => setMatchFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <button className="secondary-button compact" type="submit">
           <Search size={16} />
           搜索

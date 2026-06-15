@@ -41,10 +41,10 @@
 | 2026-06-11 | 站内原生短剧 Excel 默认读取 `captures/原生短剧数据` | 用户已将导出 Excel 放到 `captures` 目录，原导入器只查根目录 `原生短剧数据` 会误报缺少 `day.xlsx/week.xlsx/month.xlsx` | 默认同时查 `原生短剧数据` 和 `captures/原生短剧数据`；页面日期无对应 T+1 导出目录时回退到最新完整导出目录 |
 | 2026-06-11 | 清理本地 SQLite 中明确标记的 sample 展示数据 | 用户要求确认匹配数据是否真实；审计发现早期 MVP 残留 `data_kind=sample` 榜单和 `source_ref=sample` 小说映射 | 已删除 15 条 sample 榜单、4 条 sample 映射、7 条 sample 采集日志；随后按用户确认删除 1 条 `manual-form` 映射；当前映射只剩上传 Excel 来源 |
 | 2026-06-11 | 站内原生短剧顶部筛选改为榜期筛选 | 原日期控件按 `ranking_date` 查询，容易和 Excel 导出日期、DataEye 页面日期混淆，导致 native 视图停留在 `2026-06-11` 时无数据 | native 视图主控件显示 `榜期` 并绑定 `periodValue`；默认使用站内原生短剧最新榜期，DataEye 仍保留日期 + 榜期双字段 |
-| 2026-06-11 | 隐藏 DataEye 页面固定全量采集板块 | 当前页面需要聚焦榜单核对和当前筛选采集，固定全量入口占用空间且存在误触全量落库风险 | 前端不展示 `一键全量预检/真实采集 DataEye` 板块；保留当前筛选预检/采集入口，CLI/API 全量能力不变 |
-| 2026-06-11 | 隐藏 DataEye 页面模拟采集按钮 | 当前 DataEye 页面应聚焦真实数据核对，模拟采集入口容易和真实采集混淆 | 前端不展示 `采集 DataEye 模拟榜单`；保留抓包导入、当前筛选预检和当前筛选真实采集入口 |
+| 2026-06-11 | 隐藏 DataEye 页面固定全量采集板块 | 当前页面需要聚焦榜单核对，固定全量入口占用空间且存在误触全量落库风险 | 前端不展示 `一键全量预检/真实采集 DataEye` 板块；CLI/API 全量能力不变 |
+| 2026-06-11 | 隐藏 DataEye 页面模拟采集按钮 | 当前 DataEye 页面应聚焦真实数据核对，模拟采集入口容易和真实采集混淆 | 前端不展示 `采集 DataEye 模拟榜单`；DataEye 预检和采集改为 CLI/API 路径 |
 | 2026-06-11 | 隐藏 DataEye 页面榜期文本筛选入口 | DataEye 页面的可见筛选只保留日期、匹配状态、数据性质、榜单类型和周期，避免手动输入榜期造成无数据误判 | 前端不展示 DataEye `榜期` 输入；保留底层 `periodValue` 字段、URL/API 查询能力和表格榜期展示 |
-| 2026-06-11 | 隐藏榜单页页头动作组 | 页头右上角的上传抓包、生成报告、导入模拟小说库等入口与当前核对视图主流程无关，且容易与真实采集入口混淆 | 前端不展示 `header-actions`；保留底层抓包上传和抓包流水线 API，页面内仍保留当前筛选抓包导入/预检/采集入口 |
+| 2026-06-11 | 隐藏榜单页页头动作组 | 页头右上角的上传抓包、生成报告、导入模拟小说库等入口与当前核对视图主流程无关，且容易与真实采集入口混淆 | 前端不展示 `header-actions`；保留底层抓包上传和抓包流水线 API |
 | 2026-06-11 | 隐藏榜单表格类型列 | 当前核对视图聚焦榜期、排名、作品名、热度/消耗、小说匹配和采集信息，类型字段增加横向扫描成本 | 前端不展示表格 `类型` 列；底层 `dramaType` 字段、采集映射和 API 数据不变 |
 | 2026-06-11 | 单周期 DataEye 榜单隐藏周期切换 | `红果漫剧榜` 当前只支持日榜，继续展示日榜/周榜/月榜会暗示存在周榜和月榜；同时页面白名单未包含新榜单 ID 会导致 `rankType=119` 回退为全部榜单 | 页面根据 `lib/dataeye-rankings.js` 的 `periods` 元数据隐藏单周期榜单的周期切换；切换到单周期榜单时自动收敛为 `day`；`app/page.jsx` 的 rankType 白名单同步读取当前 DataEye 榜单定义 |
 | 2026-06-11 | 来源 Tab 切换自动定位最新有数据榜期 | 站内原生短剧和 DataEye / 剧查查的数据日期口径不同，直接沿用切换前日期会导致进入目标来源后无数据或显示过期榜期 | 新增 `/api/rankings/latest`，按目标来源、数据性质、榜单类型和周期查询最新可用日期/榜期；前端切换来源 Tab 时自动更新筛选值 |
@@ -54,6 +54,11 @@
 | 2026-06-11 | 顶层来源 Tab 文案收敛为 `剧查查` | 运营页面顶部入口需要更短、更贴近用户实际识别的小程序名称 | 仅修改来源 Tab 显示文案；底层 `source=dataeye`、DataEye 登录态、采集 API 和报告口径不变 |
 | 2026-06-14 | 站内原生短剧 BI 后台下载链路已通过 Chrome 验证 | 用户提供已登录火山引擎 ABI 仪表盘，`test`、`test 副本`、`test 副本 副本` 分别对应日榜、周榜、月榜 | 已下载到 `captures/原生短剧数据/0614` 并导入为 `rankingDate=2026-06-13`；后续定时任务需处理 Chrome 临时文件重命名、表头校验和登录态失效提示 |
 | 2026-06-15 | 站内原生短剧每日下载入库使用 Codex 本地 cron 自动化 | 用户已确认每天上午 8 点执行；当前下载链路依赖已登录 Chrome 和 Codex 浏览器能力，不适合先写死为 Next.js 服务内 scheduler | 新增 ACTIVE 自动化 `站内原生短剧每日下载入库`，每天 08:00 下载 day/week/month，校验表头后运行 `native:import`，并查询 SQLite/API 确认后台可读取新数据 |
+| 2026-06-15 | `codex/UI-upgrade` 只做视觉和筛选交互升级 | 用户要求使用 `design-taste-frontend` 优化清透、简约、有呼吸感的 UI，并重点简化匹配状态切换 | 不调整采集、导入、匹配、查询或数据口径；匹配状态从下拉改为分段按钮，其他变更限定为 CSS 视觉层和必要的无障碍属性 |
+| 2026-06-15 | 隐藏 DataEye 页面当前筛选真实采集入口 | 页面继续收敛为榜单核对视图，DataEye 落库应通过 CLI/API 明确执行，避免运营侧误触 | 前端不展示 `采集当前筛选 DataEye / 剧查查` 和 `预检通过后可落库`；`/api/collect`、`collect:live` 和 `dataeye:daily` 保留 |
+| 2026-06-15 | 隐藏榜单页数据性质筛选入口 | 页面核对主流程只需要来源、榜期、匹配状态、榜单类型和周期，数据性质下拉增加理解成本 | 前端工具栏不展示 `数据性质` 筛选；URL/API `dataKind` 查询能力和后台日志筛选不变 |
+| 2026-06-15 | 隐藏榜单表格数据性质列 | 榜单核对表格需要进一步降低横向扫描成本，数据性质对运营核对不是首要字段 | 前端表格不展示 `数据性质` 列和 badge；底层 `dataKind` 数据、URL/API 查询和采集日志仍保留 |
+| 2026-06-15 | 隐藏榜单表格对应小说名称列 | 当前列表保留是否匹配和平台 id 即可满足核对，小说名称列增加横向扫描成本 | 前端表格不展示 `对应小说名称` 列和行内维护映射入口；底层 `matchedNovelNames` 查询结果和小说库维护能力不变 |
 
 ## 任务看板
 
@@ -77,19 +82,24 @@
 | T-016 | 修正站内原生短剧 Excel 导入目录 | 完成 | 排查型 Agent + 实现型 Agent | `captures/原生短剧数据/0611`、页面导入报错 | `lib/native-rankings.js` 默认目录扩展、最新完整导出目录回退、README 同步、测试覆盖 | `node --test tests/native-import.test.mjs`、`npm test`、`npm run lint` 通过；API 导入 `date=2026-06-11` 成功使用 `0611` 并入库为 `2026-06-10` |
 | T-017 | 审计并清理本地测试展示数据 | 完成 | 排查型 Agent | 当前 SQLite、小说库页面反馈 | 删除 `ranking_entries.data_kind=sample`、`novel_mappings.source_ref=sample`、`collection_runs.mode=sample` 和用户确认删除的 `manual-form` 映射 | sample 残留计数为 0；`manual-form` 残留计数为 0；剩余映射为 `mapping-import:小说短剧漫剧映射.xlsx` 15 条 |
 | T-018 | 站内原生短剧筛选改为榜期口径 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、`periodValue` 数据模型 | `components/DashboardClient.jsx` native 筛选绑定 `periodValue`、`app/page.jsx` 默认 latest native period、`lib/rankings.js` latest period 查询、README 同步 | `npm test` 179 项通过；`npm run lint` 通过；浏览器验证旧 URL 自动校准为 `periodValue=2026-06-10` 且 native 日榜显示 60 条 |
-| T-019 | 隐藏 DataEye 固定全量采集板块 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、DataEye 当前筛选采集入口 | `components/DashboardClient.jsx` 移除固定全量采集 section、README 同步、测试覆盖 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证 DataEye 页不再展示全量采集板块，当前筛选入口仍可见 |
-| T-020 | 隐藏 DataEye 模拟采集按钮 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、DataEye 真实采集边界 | `components/DashboardClient.jsx` 移除 DataEye 模拟采集按钮、README 同步、测试覆盖 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证 DataEye 页不再展示模拟采集按钮，真实预检/采集入口仍可见 |
+| T-019 | 隐藏 DataEye 固定全量采集板块 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、DataEye 当前筛选采集入口 | `components/DashboardClient.jsx` 移除固定全量采集 section、README 同步、测试覆盖 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证 DataEye 页不再展示全量采集板块 |
+| T-020 | 隐藏 DataEye 模拟采集按钮 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、DataEye 真实采集边界 | `components/DashboardClient.jsx` 移除 DataEye 模拟采集按钮、README 同步、测试覆盖 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证 DataEye 页不再展示模拟采集按钮，DataEye 真实采集保留 CLI/API 路径 |
 | T-021 | 隐藏 DataEye 榜期文本筛选入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、`periodValue` 数据模型 | `components/DashboardClient.jsx` 移除 DataEye toolbar 榜期输入、README 同步、测试覆盖 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证 DataEye 筛选区不再展示榜期输入，表格榜期列仍可见 |
 | T-022 | 隐藏榜单页页头动作组 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有抓包 API | `components/DashboardClient.jsx` 移除页头 `header-actions`、README 同步、测试覆盖 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证页头不再展示上传抓包、生成报告、导入模拟小说库和模拟采集入口 |
 | T-023 | 隐藏榜单表格类型列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `dramaType` 数据模型 | `components/DashboardClient.jsx` 移除表格类型列、测试覆盖、主控文档同步 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证表格不再展示类型列，数据行仍正常 |
 | T-024 | 红果漫剧榜隐藏周期切换 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、`DATAEYE_RANKING_DEFINITIONS.periods` | `components/DashboardClient.jsx` 按单周期 DataEye 榜单隐藏 `period-switch`，`app/page.jsx` 允许当前 DataEye 新榜单 ID，测试覆盖、主控文档同步 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证 `rankType=119` 不展示日榜/周榜/月榜切换，其他多周期榜单仍展示 |
 | T-025 | 来源 Tab 切换自动定位最新榜期 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `ranking_entries` 日期与榜期数据 | `/api/rankings/latest`、`getLatestRankingDate` scope 过滤、前端来源 Tab 切换最新榜期应用、测试覆盖、主控文档同步 | 目标测试、`npm test`、`npm run lint` 通过；浏览器验证从 DataEye 切到站内原生短剧自动定位到最新 native 榜期，再切回 DataEye 自动定位到最新 DataEye 日期 |
-| T-026 | 榜单匹配平台 id 与首次进入默认匹配筛选 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、`novels.platform_id`、现有精确匹配结果 | `listRankingEntries` 返回 `matchedNovelPlatformIds`、榜单表格新增平台 id 列、首屏默认匹配筛选逻辑、测试覆盖、主控文档同步 | 平台 id 位于对应小说名称后；未匹配或无平台 id 时为空；无显式 `match` URL 首屏有已匹配则默认已匹配，无已匹配则回退全部；显式 `match` 不被覆盖 |
+| T-026 | 榜单匹配平台 id 与首次进入默认匹配筛选 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、`novels.platform_id`、现有精确匹配结果 | `listRankingEntries` 返回 `matchedNovelPlatformIds`、榜单表格新增平台 id 列、首屏默认匹配筛选逻辑、测试覆盖、主控文档同步 | 平台 id 位于匹配状态后；未匹配或无平台 id 时为空；无显式 `match` URL 首屏有已匹配则默认已匹配，无已匹配则回退全部；显式 `match` 不被覆盖 |
 | T-027 | 隐藏 DataEye 抓包榜单导入入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有抓包导入 CLI/API | `components/DashboardClient.jsx` 移除抓包导入按钮和前端函数、README CLI-only 说明、测试覆盖、主控文档同步 | 页面不再展示 `导入 DataEye / 剧查查抓包榜单`；后台 `app/api/capture/import` 保留；目标测试、lint 和浏览器验收通过 |
 | T-028 | 隐藏 DataEye 当前筛选预检入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有预检 API | `components/DashboardClient.jsx` 移除预检按钮和前端函数、README CLI/API 说明、测试覆盖、主控文档同步 | 页面不再展示 `预检当前筛选 DataEye / 剧查查`；后台 `app/api/collect/preview` 保留；目标测试、lint 和页面 HTML 验收通过 |
 | T-029 | 顶层来源 Tab 改名为剧查查 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `sourceTabs` | `components/DashboardClient.jsx` 来源 Tab 文案调整、测试覆盖、主控文档同步 | 顶层来源 Tab 显示 `剧查查`；底层 `source=dataeye` 和 `sourceLabels.dataeye` 仍保留 DataEye / 剧查查 语义 |
 | T-030 | 站内原生短剧 BI 后台下载验证 | 完成 | 总控 Agent | 已登录 Chrome、火山引擎 ABI 仪表盘 | `captures/原生短剧数据/0614/day.xlsx`、`week.xlsx`、`month.xlsx`，本地 SQLite native live 数据 | 下载日/周/月 Excel 成功；`native:import` 新增 1418 条、跳过 6 条；`2026-06-13` day/week/month 页面查询有效展示行分别为 472/473/473 条 |
 | T-031 | 站内原生短剧每日 8 点自动下载入库 | 完成 | 总控 Agent + Codex cron 自动化 | T-030、已登录 Chrome、当前 workspace | Codex 自动化 `站内原生短剧每日下载入库` | 自动化状态 ACTIVE；RRULE 每天 08:00；任务会下载三份 XLSX、校验表头、执行 `native:import`、查询 SQLite/API 确认后台读到新数据；失败时不导入 |
+| T-032 | 榜单与小说库 UI 视觉升级 | 完成 | 实现型 Agent + 验证型 Agent | `design-taste-frontend`、当前 `DashboardClient`、`NovelsClient`、`globals.css` | 清透浅色视觉层、匹配状态分段切换、页面自测结果 | 不改变数据功能；`npm test`、`npm run lint`、浏览器验收通过 |
+| T-033 | 隐藏 DataEye 当前筛选真实采集入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `/api/collect` 后端能力 | `components/DashboardClient.jsx` 移除当前筛选真实采集按钮和前端 `collect` 调用，`app/globals.css` 移除残留状态样式、README 同步、测试覆盖 | 页面不再展示 `采集当前筛选 DataEye / 剧查查` 和 `预检通过后可落库`；后台 `/api/collect` 与 CLI 保留；lint、测试和页面 HTML 验收通过 |
+| T-034 | 隐藏榜单页数据性质筛选入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `dataKind` 查询 | `components/DashboardClient.jsx` 移除 toolbar 数据性质 select，测试覆盖、主控文档同步 | 页面不再展示 `数据性质` 筛选下拉；URL/API `dataKind` 能力保留；lint、测试和页面 HTML 验收通过 |
+| T-035 | 隐藏榜单表格数据性质列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `dataKind` 展示列 | `components/DashboardClient.jsx` 移除表格数据性质列，`app/globals.css` 移除 data-kind badge 样式，测试覆盖、主控文档同步 | 页面不再展示表格 `数据性质` 列；空表格 `colSpan=8`；URL/API `dataKind` 能力保留；lint、测试和页面 HTML 验收通过 |
+| T-036 | 隐藏榜单表格对应小说名称列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `matchedNovelNames` 展示列 | `components/DashboardClient.jsx` 移除对应小说名称列、行内维护映射链接和无用 `returnToRankings`，`app/globals.css` 移除 `table-link` 样式，测试覆盖、主控文档同步 | 页面不再展示表格 `对应小说名称` 列；空表格 `colSpan=7`；平台 id 仍展示；lint、测试和页面 HTML 验收通过 |
 
 ## 线程索引
 
@@ -101,18 +111,19 @@
 | 原生 Excel 数据接入线程 | 将 `原生短剧数据` 或 `captures/原生短剧数据` 作为站内原生短剧来源入库并展示 | 完成 | `day.xlsx`、`week.xlsx`、`month.xlsx` | CLI/API/UI 可导入并展示；页面日期无匹配导出目录时可回退到最新完整导出目录；小说匹配复用现有精确匹配 |
 | 站内原生短剧后台下载线程 | 验证并调度从火山引擎 ABI 仪表盘下载 day/week/month Excel 并导入 | 已调度，待首个 08:00 自动运行结果 | 已登录 Chrome、dashboard 38518、三个表格菜单下载入口、Codex cron 自动化 | 三个 xlsx 可落到 `captures/原生短剧数据/<MMDD>`；自动化每天 08:00 执行下载、导入和后台读取验证 |
 | 小说库管理优化线程 | 将小说库改为本地 Excel/CSV 主库导入 + 单页映射维护，并支持独立映射 Excel 导入和映射核对筛选 | 完成 | 本地小说主库导出字段、映射 Excel、`novels`、`novel_mappings`、`/novels` 页面 | 小说主库可导入和搜索，映射 Excel 可批量写入映射，小说/短剧模糊搜索和映射状态筛选可用，榜单页回填短剧名路径保留 |
+| UI 升级线程 | 优化榜单页和小说库页的视觉层级与匹配状态筛选交互 | 完成 | `codex/UI-upgrade`、`design-taste-frontend`、当前页面反馈 | 视觉和交互自测通过，且不引入数据功能变更 |
 
 ## Git 记录
 
 | 项 | 状态 |
 | --- | --- |
-| 当前工作分支 | `codex/native-data-get` |
-| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/native-data-get` |
+| 当前工作分支 | `codex/UI-upgrade` |
+| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/UI-upgrade` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 本轮提交目标为 `origin/codex/native-data-get`，PR 待创建或更新 |
+| 远端状态 | 本地新分支已创建，尚未推送 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
 | 最近主控提交 | T-030/T-031：记录站内原生短剧后台下载验证和每日 08:00 自动化 |
-| 本轮提交边界 | T-030 至 T-031：站内原生短剧 BI 后台下载验证记录和 Codex 本地 cron 自动化状态；后续如需脱离 Codex，另开 launchd/脚本化下载代码闭环 |
+| 本轮提交边界 | T-032/T-036：仅限 UI 视觉升级、匹配状态筛选交互和 DataEye 页面冗余入口隐藏，不调整采集、导入、匹配、查询或数据口径 |
 | 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
 ## 风险与阻塞清单

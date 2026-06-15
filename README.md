@@ -109,7 +109,7 @@ npm run native:import -- --export-date 0611 --base-dir captures/原生短剧数�
 
 当前真实采集只启用 DataEye / 剧查查，落库请求必须明确指定 `source=dataeye`，避免和未验证的红果采集混跑：
 
-先执行只读预检，不写入 SQLite。页面上也可以点击 `预检 DataEye / 剧查查真实采集`；同一日期、同一来源预检成功后，页面上的真实采集按钮才会启用：
+先执行只读预检，不写入 SQLite。页面不展示 DataEye 预检和真实采集入口；预检和落库统一使用 CLI/API：
 
 ```bash
 npm run collect:preview -- --date 2026-06-06
@@ -133,7 +133,7 @@ curl -X POST http://localhost:3000/api/collect \
   -d '{"date":"2026-06-06","source":"dataeye","mode":"live","confirmedPreview":true,"rankType":"all","period":"all"}'
 ```
 
-页面不展示当前筛选预检入口；需要预检时使用 CLI/API。固定全量采集入口不在页面展示，仍可通过 CLI/API 执行 `rankType=all + period=all`；`rankType=all` 当前只覆盖已重新抓包确认的 4 个每日目标榜单。`collect:preview` 和 `collect:live` 仍兼容旧用法，默认只采历史 `rankType=0 + day`；`dataeye:daily` 默认执行新的 `rankType=all + period=all`。当前页面操作按钮固定指向 DataEye；红果只保留为历史/模拟数据筛选和后续抓包分析入口，不推进单独红果 live。
+页面不展示当前筛选预检和真实采集入口；需要预检或落库时使用 CLI/API。固定全量采集入口不在页面展示，仍可通过 CLI/API 执行 `rankType=all + period=all`；`rankType=all` 当前只覆盖已重新抓包确认的 4 个每日目标榜单。`collect:preview` 和 `collect:live` 仍兼容旧用法，默认只采历史 `rankType=0 + day`；`dataeye:daily` 默认执行新的 `rankType=all + period=all`。红果只保留为历史/模拟数据筛选和后续抓包分析入口，不推进单独红果 live。
 
 DataEye 当前采集榜单类型：
 
@@ -398,7 +398,7 @@ https://x0sgcptncj.feishu.cn/wiki/Cm9QwkKCsi7kSvk8ApFcMRY4nHc?from=from_copylink
 - 映射匹配
 - 最近更新时间
 
-页面支持按小说名称或短剧/漫剧名称模糊搜索，并支持用 `映射匹配` 下拉筛选全部、已映射或未映射。手动维护映射时，填写小说名称和短剧/漫剧名称后保存到 `novel_mappings`。榜单页未匹配作品点击 `去维护映射` 后，会自动带入短剧/漫剧名称，并保留返回当前榜单筛选条件的入口，方便保存后核对匹配结果。同一小说和同一短剧/漫剧重复保存会更新关系类型和来源，不会新增重复映射。
+页面支持按小说名称或短剧/漫剧名称模糊搜索，并支持用 `映射匹配` 下拉筛选全部、已映射或未映射。手动维护映射时，填写小说名称和短剧/漫剧名称后保存到 `novel_mappings`。榜单页只展示匹配状态和平台 id；新增或修正映射请在小说库页维护，或通过映射 Excel 批量导入。同一小说和同一短剧/漫剧重复保存会更新关系类型和来源，不会新增重复映射。
 
 小说列表默认优先展示已映射小说；`短剧/漫剧名` 多个映射用 `、` 连接，`映射匹配` 显示 `是/否`。
 

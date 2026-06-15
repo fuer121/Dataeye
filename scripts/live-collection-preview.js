@@ -118,7 +118,7 @@ function renderPreview(result) {
 
 ## 结论
 
-${result.ok ? "已成功获取真实榜单预览。该脚本未写入 SQLite；确认无误后可通过页面或 `/api/collect` 执行 live 采集落库。" : "未获取到真实榜单数组。该脚本未写入 SQLite。"}
+${result.ok ? "已成功获取真实榜单预览。该脚本未写入 SQLite；确认无误后可通过 CLI 或 `/api/collect` 执行 live 采集落库。" : "未获取到真实榜单数组。该脚本未写入 SQLite。"}
 
 | 项 | 内容 |
 | --- | --- |
