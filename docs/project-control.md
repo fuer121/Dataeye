@@ -122,9 +122,9 @@
 | 当前工作分支 | `codex/fix-02` |
 | 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/fix-02` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 本地新分支已创建，尚未推送 |
+| 远端状态 | 已推送 `origin/codex/fix-02`，Draft PR #10 已创建：https://github.com/fuer121/Dataeye/pull/10 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
-| 最近主控提交 | T-032/T-036：UI 视觉升级、匹配状态分段切换、冗余入口和表格列隐藏 |
+| 最近主控提交 | T-037：映射 Excel 平台 id 导入 |
 | 本轮提交边界 | T-037：仅限映射 Excel 平台 id 解析、小说主表平台 id 补齐、相关测试和文档，不调整榜单采集或匹配规则 |
 | 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
