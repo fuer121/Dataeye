@@ -7,6 +7,8 @@ import { getLatestPeriodValue, getLatestRankingDate, listCollectionRuns, listRan
 const SOURCES = new Set(["dataeye", "native"]);
 const MATCH_STATUSES = new Set(["all", "matched", "unmatched"]);
 const DATA_KINDS = new Set(["all", "sample", "capture", "live"]);
+const WATCH_STATUSES = new Set(["all", "pending", "followed", "ignored"]);
+const LISTING_STATUSES = new Set(["all", "new", "recurring", "rank_up", "rank_down"]);
 const RANK_TYPES = new Set([
   "all",
   ...Array.from({ length: 21 }, (_, index) => String(index)),
@@ -19,11 +21,12 @@ export default async function HomePage({ searchParams }) {
   const initialSource = getAllowed(params.source, SOURCES, "native");
   const fallbackDate = getLatestRankingDate() || formatShanghaiDate(new Date());
   const requestedDate = getValidDate(params.date);
-  const requestedMatch = getString(params.match);
-  const hasExplicitMatch = MATCH_STATUSES.has(requestedMatch);
+  const initialMatch = getAllowed(params.match, MATCH_STATUSES, "all");
   const initialDataKind = getAllowed(params.dataKind, DATA_KINDS, "all");
   const initialRankType = getAllowed(params.rankType, RANK_TYPES, "all");
   const initialRankPeriod = getAllowed(params.rankPeriod, RANK_PERIODS, "day");
+  const initialWatchStatus = getAllowed(params.watchStatus, WATCH_STATUSES, "all");
+  const initialListingStatus = getAllowed(params.listingStatus, LISTING_STATUSES, "all");
   const latestNativePeriodValue =
     initialSource === "native"
       ? getLatestPeriodValue({
@@ -42,10 +45,11 @@ export default async function HomePage({ searchParams }) {
     rankPeriod: initialRankPeriod,
     periodValue: initialSource === "native" ? initialPeriodValue || initialDate : initialPeriodValue
   };
-  const initialMatch = hasExplicitMatch ? requestedMatch : getDefaultMatchStatus(initialRankingFilters);
   const initialItems = listRankingEntries({
     ...initialRankingFilters,
-    match: initialMatch
+    match: initialMatch,
+    watchStatus: initialWatchStatus,
+    listingStatus: initialListingStatus
   });
   const initialRuns = listCollectionRuns({
     date: initialSource === "native" ? initialPeriodValue || initialDate : initialDate,
@@ -63,6 +67,8 @@ export default async function HomePage({ searchParams }) {
       initialRankType={initialRankType}
       initialRankPeriod={initialRankPeriod}
       initialPeriodValue={initialPeriodValue}
+      initialWatchStatus={initialWatchStatus}
+      initialListingStatus={initialListingStatus}
       initialItems={initialItems}
       initialRuns={initialRuns}
       initialMvpStatus={initialMvpStatus}
@@ -86,17 +92,4 @@ function getValidDate(value) {
 
 function getRunMode(dataKind) {
   return dataKind === "all" ? "all" : dataKind;
-}
-
-function getDefaultMatchStatus(filters) {
-  const matchedRows = listRankingEntries({
-    ...filters,
-    match: "matched"
-  });
-  return matchedRows.some(isVisibleInitialRankingRow) ? "matched" : "all";
-}
-
-function isVisibleInitialRankingRow(row) {
-  if (row.source !== "dataeye") return true;
-  return DATAEYE_ACTIVE_RANK_TYPES.includes(Number(row.rankType));
 }
