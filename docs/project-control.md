@@ -59,6 +59,7 @@
 | 2026-06-15 | 隐藏榜单页数据性质筛选入口 | 页面核对主流程只需要来源、榜期、匹配状态、榜单类型和周期，数据性质下拉增加理解成本 | 前端工具栏不展示 `数据性质` 筛选；URL/API `dataKind` 查询能力和后台日志筛选不变 |
 | 2026-06-15 | 隐藏榜单表格数据性质列 | 榜单核对表格需要进一步降低横向扫描成本，数据性质对运营核对不是首要字段 | 前端表格不展示 `数据性质` 列和 badge；底层 `dataKind` 数据、URL/API 查询和采集日志仍保留 |
 | 2026-06-15 | 隐藏榜单表格对应小说名称列 | 当前列表保留是否匹配和平台 id 即可满足核对，小说名称列增加横向扫描成本 | 前端表格不展示 `对应小说名称` 列和行内维护映射入口；底层 `matchedNovelNames` 查询结果和小说库维护能力不变 |
+| 2026-06-15 | 映射 Excel 支持同步平台 id 到小说主表 | 用户更新 `小说短剧漫剧映射.xlsx` 增加 `平台id` 列，榜单页平台 id 展示依赖 `novels.platform_id` | `/api/novels/import/mappings` 导入时读取 `平台id/平台ID/平台 id`；新建小说写入平台 id；已有小说仅在平台 id 为空时补齐，不覆盖非空值 |
 
 ## 任务看板
 
@@ -100,6 +101,7 @@
 | T-034 | 隐藏榜单页数据性质筛选入口 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `dataKind` 查询 | `components/DashboardClient.jsx` 移除 toolbar 数据性质 select，测试覆盖、主控文档同步 | 页面不再展示 `数据性质` 筛选下拉；URL/API `dataKind` 能力保留；lint、测试和页面 HTML 验收通过 |
 | T-035 | 隐藏榜单表格数据性质列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `dataKind` 展示列 | `components/DashboardClient.jsx` 移除表格数据性质列，`app/globals.css` 移除 data-kind badge 样式，测试覆盖、主控文档同步 | 页面不再展示表格 `数据性质` 列；空表格 `colSpan=8`；URL/API `dataKind` 能力保留；lint、测试和页面 HTML 验收通过 |
 | T-036 | 隐藏榜单表格对应小说名称列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `matchedNovelNames` 展示列 | `components/DashboardClient.jsx` 移除对应小说名称列、行内维护映射链接和无用 `returnToRankings`，`app/globals.css` 移除 `table-link` 样式，测试覆盖、主控文档同步 | 页面不再展示表格 `对应小说名称` 列；空表格 `colSpan=7`；平台 id 仍展示；lint、测试和页面 HTML 验收通过 |
+| T-037 | 映射 Excel 平台 id 导入 | 完成 | 实现型 Agent + 验证型 Agent | 用户更新后的 `assess/小说短剧漫剧映射.xlsx`、现有 `novels.platform_id` | `lib/novels.js` 支持映射 Excel 平台 id 解析和补齐，测试覆盖，README 和主控文档同步，本地 SQLite 已按更新文件重新导入 | 映射 Excel 30 行有效导入；涉及 15 本小说均有平台 id；已有非空平台 id 不被覆盖；目标测试通过 |
 
 ## 线程索引
 
@@ -117,13 +119,13 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 当前工作分支 | `codex/UI-upgrade` |
-| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/UI-upgrade` |
+| 当前工作分支 | `codex/fix-02` |
+| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/fix-02` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 已推送 `origin/codex/UI-upgrade`，Draft PR #9 已创建：https://github.com/fuer121/Dataeye/pull/9 |
+| 远端状态 | 本地新分支已创建，尚未推送 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
 | 最近主控提交 | T-032/T-036：UI 视觉升级、匹配状态分段切换、冗余入口和表格列隐藏 |
-| 本轮提交边界 | T-032/T-036：仅限 UI 视觉升级、匹配状态筛选交互和 DataEye 页面冗余入口隐藏，不调整采集、导入、匹配、查询或数据口径 |
+| 本轮提交边界 | T-037：仅限映射 Excel 平台 id 解析、小说主表平台 id 补齐、相关测试和文档，不调整榜单采集或匹配规则 |
 | 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
 ## 风险与阻塞清单

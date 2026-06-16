@@ -202,7 +202,8 @@ test("importNovelMappingsWorkbookFromBuffer creates missing novels and mappings 
   const sheet = XLSX.utils.json_to_sheet([
     {
       小说名称: "我开养老院爆火后，全家火葬场",
-      "短剧/漫剧名称": "我的养老院，个个是大佬"
+      "短剧/漫剧名称": "我的养老院，个个是大佬",
+      "平台 id": "p-养老院"
     },
     {
       小说名称: "",
@@ -228,8 +229,41 @@ test("importNovelMappingsWorkbookFromBuffer creates missing novels and mappings 
   const rows = listNovels("养老院");
   assert.equal(rows.length, 1);
   assert.equal(rows[0].novelName, "我开养老院爆火后，全家火葬场");
+  assert.equal(rows[0].platformId, "p-养老院");
   assert.equal(rows[0].mappingMatched, true);
   assert.deepEqual(rows[0].dramaTitles, ["我的养老院，个个是大佬"]);
+});
+
+test("importNovelMappingsWorkbookFromBuffer fills missing platform id from mapping workbook", () => {
+  useTempDb("novel-mapping-workbook-platform-id");
+
+  upsertNovels([
+    {
+      novelName: "被迫嫁给首富后"
+    }
+  ]);
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet([
+    {
+      小说名称: "被迫嫁给首富后",
+      "短剧/漫剧名称": "首富老公太会宠",
+      平台ID: "platform-888"
+    }
+  ]);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Sheet1");
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+  const result = importNovelMappingsWorkbookFromBuffer(buffer, "mapping.xlsx");
+
+  assert.equal(result.createdNovelCount, 0);
+  assert.equal(result.existingNovelCount, 1);
+  assert.equal(result.mappingChangedCount, 1);
+
+  const rows = listNovels("首富");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platformId, "platform-888");
+  assert.deepEqual(rows[0].dramaTitles, ["首富老公太会宠"]);
 });
 
 test("importNovelMappingsWorkbookFromBuffer does not blank existing novel metadata", () => {
@@ -251,7 +285,8 @@ test("importNovelMappingsWorkbookFromBuffer does not blank existing novel metada
   const sheet = XLSX.utils.json_to_sheet([
     {
       小说名称: "京婚浓瘾",
-      "短剧/漫剧名称": "攀枝"
+      "短剧/漫剧名称": "攀枝",
+      平台ID: "p-new"
     }
   ]);
   XLSX.utils.book_append_sheet(workbook, sheet, "Sheet1");
