@@ -79,7 +79,7 @@ test("dashboard hides data kind filter and table column while keeping query supp
   assert.doesNotMatch(source, /<th>数据性质<\/th>/);
   assert.doesNotMatch(source, /className=\{`badge data-kind \$\{item\.dataKind\}`\}/);
   assert.match(source, /const \[dataKind, setDataKind\] = useState\(initialDataKind\);/);
-  assert.match(source, /const params = new URLSearchParams\(\{ source, match, dataKind, rankType, rankPeriod \}\);/);
+  assert.match(source, /const params = new URLSearchParams\(\{ source, match, dataKind, rankType, rankPeriod, watchStatus, listingStatus \}\);/);
 });
 
 test("novel maintenance page keeps a safe return target", () => {
@@ -226,7 +226,7 @@ test("dashboard hides rank type column from the table", () => {
   assert.match(source, /aria-label="榜单类型"/);
   assert.doesNotMatch(source, /<th>榜单类型<\/th>/);
   assert.doesNotMatch(source, /item\.rankTypeName \|\| rankTypeLabels\[item\.rankType\]/);
-  assert.match(source, /colSpan="7"/);
+  assert.match(source, /colSpan="10"/);
 });
 
 test("dashboard uses table title area for period switching", () => {
@@ -261,7 +261,7 @@ test("dashboard hides period column from the table", () => {
   assert.match(source, /aria-label="切换榜单周期"/);
   assert.doesNotMatch(source, /<th>周期<\/th>/);
   assert.doesNotMatch(source, /rankPeriodLabels\[item\.rankPeriod\] \|\| item\.rankPeriod/);
-  assert.match(source, /colSpan="7"/);
+  assert.match(source, /colSpan="10"/);
 });
 
 test("dashboard hides source column from the table", () => {
@@ -269,7 +269,7 @@ test("dashboard hides source column from the table", () => {
 
   assert.doesNotMatch(source, /<th>来源<\/th>/);
   assert.doesNotMatch(source, /\{sourceLabels\[item\.source\]\}/);
-  assert.match(source, /colSpan="7"/);
+  assert.match(source, /colSpan="10"/);
 });
 
 test("dashboard hides date column from the table", () => {
@@ -277,7 +277,7 @@ test("dashboard hides date column from the table", () => {
 
   assert.doesNotMatch(source, /<th>日期<\/th>/);
   assert.doesNotMatch(source, /<td>\{item\.rankingDate\}<\/td>/);
-  assert.match(source, /colSpan="7"/);
+  assert.match(source, /colSpan="10"/);
 });
 
 test("dashboard hides drama type column from the table", () => {
@@ -285,24 +285,91 @@ test("dashboard hides drama type column from the table", () => {
 
   assert.doesNotMatch(source, /<th>类型<\/th>/);
   assert.doesNotMatch(source, /<td>\{item\.dramaType\}<\/td>/);
-  assert.match(source, /colSpan="7"/);
+  assert.match(source, /colSpan="10"/);
 });
 
-test("dashboard shows matched novel platform id after match status", () => {
+test("dashboard shows matched novel name before platform id", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
   const matchHeaderIndex = source.indexOf("<th>是否匹配小说</th>");
+  const novelHeaderIndex = source.indexOf("<th>匹配小说名称</th>");
   const platformHeaderIndex = source.indexOf("<th>平台 id</th>");
+  const listingHeaderIndex = source.indexOf("<th>上榜情况/排名变化</th>");
+  const watchHeaderIndex = source.indexOf("<th>监控状态</th>");
   const collectedHeaderIndex = source.indexOf("<th>采集时间</th>");
   const matchCellIndex = source.indexOf('className={`badge ${item.matchStatus}`}');
+  const novelCellIndex = source.indexOf("item.matchedNovelNames");
   const platformCellIndex = source.indexOf("item.matchedNovelPlatformIds");
+  const listingCellIndex = source.indexOf("formatListingSummary(item)");
+  const watchCellIndex = source.indexOf('className="watch-status-select"');
   const collectedCellIndex = source.indexOf("new Date(item.collectedAt)");
 
   assert.doesNotMatch(source, /<th>对应小说名称<\/th>/);
-  assert.doesNotMatch(source, /item\.matchedNovelNames/);
   assert.ok(matchHeaderIndex < platformHeaderIndex);
-  assert.ok(platformHeaderIndex < collectedHeaderIndex);
+  assert.ok(matchHeaderIndex < novelHeaderIndex);
+  assert.ok(novelHeaderIndex < platformHeaderIndex);
+  assert.ok(platformHeaderIndex < listingHeaderIndex);
+  assert.ok(listingHeaderIndex < watchHeaderIndex);
+  assert.ok(watchHeaderIndex < collectedHeaderIndex);
   assert.ok(matchCellIndex < platformCellIndex);
-  assert.ok(platformCellIndex < collectedCellIndex);
+  assert.ok(matchCellIndex < novelCellIndex);
+  assert.ok(novelCellIndex < platformCellIndex);
+  assert.ok(platformCellIndex < listingCellIndex);
+  assert.ok(listingCellIndex < watchCellIndex);
+  assert.ok(watchCellIndex < collectedCellIndex);
+  assert.match(source, /item\.matchStatus === "matched" && item\.matchedNovelNames !== "未匹配"/);
+});
+
+test("dashboard adds monitoring status and listing signal controls", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const rankingsApi = fs.readFileSync(path.join(process.cwd(), "app/api/rankings/route.js"), "utf8");
+  const watchApi = fs.readFileSync(path.join(process.cwd(), "app/api/watch-states/route.js"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  assert.match(source, /const watchStatusLabels = \{/);
+  assert.match(source, /pending: "待关注"/);
+  assert.match(source, /const listingStatusLabels = \{/);
+  assert.match(source, /rank_up: "排名上升"/);
+  assert.match(source, /aria-label="榜单监控摘要"/);
+  assert.doesNotMatch(source, />当前榜期总数</);
+  assert.doesNotMatch(source, /monitorSummary\.total/);
+  assert.match(source, />已匹配</);
+  assert.match(source, />待关注</);
+  assert.match(source, />新上榜</);
+  assert.match(source, /setWatchStatus\(event\.target\.value\)/);
+  assert.match(source, /setListingStatus\(event\.target\.value\)/);
+  assert.match(source, /fetch\("\/api\/watch-states"/);
+  assert.match(source, /formatListingSummary\(item\)/);
+  assert.match(source, /className="rank-change rank-change-up"/);
+  assert.match(source, /className="rank-change rank-change-down"/);
+  assert.match(source, /className="rank-change rank-change-flat"/);
+  assert.match(source, /连续 \$\{item\.consecutiveListedDays\} 天上榜/);
+  assert.match(source, /累计 \$\{item\.totalListedDays\} 天上榜/);
+  assert.match(source, /item\.previousRank !== null && item\.previousRank !== undefined/);
+  assert.match(source, /排名↑\{rankChange\}/);
+  assert.match(source, /排名↓\{Math\.abs\(rankChange\)\}/);
+  assert.match(source, />排名持平</);
+  assert.match(source, /watch-status-select/);
+  assert.match(rankingsApi, /watchStatus: searchParams\.get\("watchStatus"\) \|\| "all"/);
+  assert.match(rankingsApi, /listingStatus: searchParams\.get\("listingStatus"\) \|\| "all"/);
+  assert.match(watchApi, /export async function PATCH/);
+  assert.match(watchApi, /upsertWatchState/);
+  assert.match(css, /\.monitor-summary/);
+  assert.match(css, /\.rank-change-up/);
+  assert.match(css, /\.rank-change-down/);
+  assert.match(css, /\.rank-change-flat/);
+  assert.match(css, /\.watch-status-select/);
+});
+
+test("dashboard ranking table adapts to the panel width", () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const css = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  assert.match(source, /<table className="rankings-table">/);
+  assert.match(css, /\.main \{\s*min-width: 0;\s*width: 100%;/s);
+  assert.doesNotMatch(css, /width: min\(1280px, 100%\);/);
+  assert.match(css, /\.rankings-table \{\s*min-width: 0;\s*table-layout: fixed;/s);
+  assert.match(css, /\.rankings-table th,\s*\.rankings-table td \{/);
+  assert.match(css, /overflow-wrap: anywhere;/);
 });
 
 test("dashboard uses local MVP status only for recovery guidance", () => {
@@ -434,15 +501,16 @@ test("dashboard switches source tabs to the latest available ranking scope", () 
   assert.match(api, /getLatestPeriodValue/);
 });
 
-test("dashboard defaults to matched rows only on first entry when matched rows exist", () => {
+test("dashboard defaults to the full monitoring table on first entry", () => {
   const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
 
-  assert.match(page, /const requestedMatch = getString\(params\.match\);/);
-  assert.match(page, /const hasExplicitMatch = MATCH_STATUSES\.has\(requestedMatch\);/);
-  assert.match(page, /const initialMatch = hasExplicitMatch \? requestedMatch : getDefaultMatchStatus\(initialRankingFilters\);/);
-  assert.match(page, /match: "matched"/);
-  assert.match(page, /DATAEYE_ACTIVE_RANK_TYPES\.includes\(Number\(row\.rankType\)\)/);
-  assert.match(page, /matchedRows\.some\(isVisibleInitialRankingRow\) \? "matched" : "all"/);
+  assert.match(page, /const initialMatch = getAllowed\(params\.match, MATCH_STATUSES, "all"\);/);
+  assert.match(page, /const initialWatchStatus = getAllowed\(params\.watchStatus, WATCH_STATUSES, "all"\);/);
+  assert.match(page, /const initialListingStatus = getAllowed\(params\.listingStatus, LISTING_STATUSES, "all"\);/);
+  assert.match(page, /watchStatus: initialWatchStatus/);
+  assert.match(page, /listingStatus: initialListingStatus/);
+  assert.doesNotMatch(page, /getDefaultMatchStatus/);
+  assert.doesNotMatch(page, /match: "matched"/);
 });
 
 test("dashboard hides DataEye current-filter live action while keeping the API available", () => {

@@ -126,6 +126,25 @@ test("importNativeRankings fails before writing when a required period file is m
   assert.equal(listRankingEntries({ date: "2026-06-09", source: "native" }).length, 0);
 });
 
+test("importNativeRankings fails before writing when two period files have identical rows", () => {
+  const root = useTempWorkspace("native-import-duplicate-period");
+  const dir = path.join(root, "原生短剧数据", "0610");
+  const duplicateRows = [
+    ["短剧名称", "消耗"],
+    ["短剧A", 1],
+    ["短剧B", 2]
+  ];
+  writeNativeWorkbook(path.join(dir, "day.xlsx"), duplicateRows);
+  writeNativeWorkbook(path.join(dir, "week.xlsx"), duplicateRows);
+  writeNativeWorkbook(path.join(dir, "month.xlsx"), [["短剧名称", "消耗"], ["短剧C", 3]]);
+
+  assert.throws(
+    () => importNativeRankings({ exportDate: "0610", baseDir: path.join(root, "原生短剧数据") }),
+    /周期内容疑似重复.*day\.xlsx.*week\.xlsx/
+  );
+  assert.equal(listRankingEntries({ date: "2026-06-09", source: "native" }).length, 0);
+});
+
 test("native source participates in exact novel matching", () => {
   const root = useTempWorkspace("native-import-match");
   writeNativeFiles(root);

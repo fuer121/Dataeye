@@ -14,7 +14,9 @@ export async function GET(request) {
       dataKind: searchParams.get("dataKind") || "all",
       rankType: searchParams.get("rankType") || "all",
       rankPeriod: searchParams.get("rankPeriod") || "all",
-      periodValue: searchParams.get("periodValue") || ""
+      periodValue: searchParams.get("periodValue") || "",
+      watchStatus: searchParams.get("watchStatus") || "all",
+      listingStatus: searchParams.get("listingStatus") || "all"
     });
     return NextResponse.json({ items: listRankingEntries(filters) });
   } catch (error) {

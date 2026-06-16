@@ -13,6 +13,7 @@ import {
   listRankingEntries,
   normalizeRankingFilters,
   normalizeRunFilters,
+  upsertWatchState,
   upsertRankingEntries
 } from "../lib/rankings.js";
 
@@ -345,6 +346,129 @@ test("ranking query returns matched novel platform ids from the novel library", 
   assert.equal(rows[2].matchedNovelPlatformIds, "");
 });
 
+test("ranking query returns listing history and rank movement by source type and period", () => {
+  useTempDb("ranking-history");
+  upsertRankingEntries([
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-13",
+      rankPeriod: "day",
+      periodValue: "2026-06-13",
+      rank: 5,
+      title: "连续上榜作品",
+      heatValue: "100",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-14",
+      rankPeriod: "day",
+      periodValue: "2026-06-14",
+      rank: 3,
+      title: "连续上榜作品",
+      heatValue: "120",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-15",
+      rankPeriod: "day",
+      periodValue: "2026-06-15",
+      rank: 4,
+      title: "连续上榜作品",
+      heatValue: "110",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-15",
+      rankPeriod: "day",
+      periodValue: "2026-06-15",
+      rank: 1,
+      title: "首次上榜作品",
+      heatValue: "200",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-15",
+      rankPeriod: "week",
+      periodValue: "2026-06-09 ~ 2026-06-15",
+      rank: 1,
+      title: "连续上榜作品",
+      heatValue: "999",
+      dramaType: "未知",
+      sourceRef: "test"
+    }
+  ]);
+
+  const rows = listRankingEntries({ date: "2026-06-15", source: "native", rankPeriod: "day" });
+  const recurring = rows.find((row) => row.title === "连续上榜作品");
+  const fresh = rows.find((row) => row.title === "首次上榜作品");
+
+  assert.equal(recurring.firstListedDate, "2026-06-13");
+  assert.equal(recurring.latestListedDate, "2026-06-15");
+  assert.equal(recurring.totalListedDays, 3);
+  assert.equal(recurring.consecutiveListedDays, 3);
+  assert.equal(recurring.previousRank, 3);
+  assert.equal(recurring.rankChange, -1);
+  assert.equal(recurring.isNewListing, false);
+  assert.equal(recurring.isRecurringListing, true);
+  assert.equal(fresh.isNewListing, true);
+  assert.equal(fresh.totalListedDays, 1);
+  assert.equal(listRankingEntries({ date: "2026-06-15", source: "native", rankPeriod: "day", listingStatus: "new" }).length, 1);
+  assert.equal(listRankingEntries({ date: "2026-06-15", source: "native", rankPeriod: "day", listingStatus: "recurring" }).length, 1);
+  assert.equal(listRankingEntries({ date: "2026-06-15", source: "native", rankPeriod: "day", listingStatus: "rank_down" }).length, 1);
+});
+
+test("watch state is shared globally by normalized drama title", () => {
+  useTempDb("watch-state-shared");
+  upsertRankingEntries([
+    {
+      source: "native",
+      dataKind: "live",
+      rankingDate: "2026-06-15",
+      rank: 1,
+      title: "全家一起搬，商圈大换血",
+      heatValue: "100",
+      dramaType: "未知",
+      sourceRef: "test"
+    },
+    {
+      source: "dataeye",
+      dataKind: "live",
+      rankingDate: "2026-06-15",
+      rank: 1,
+      title: "《全家一起搬 商圈大换血》",
+      heatValue: "1.0亿",
+      dramaType: "都市",
+      sourceRef: "test"
+    }
+  ]);
+
+  const state = upsertWatchState({
+    title: "全家一起搬，商圈大换血",
+    status: "followed",
+    note: "已通知运营"
+  });
+  assert.equal(state.status, "followed");
+  assert.equal(state.note, "已通知运营");
+
+  const rows = listRankingEntries({ date: "2026-06-15", watchStatus: "followed" });
+  assert.equal(rows.length, 2);
+  assert.deepEqual(new Set(rows.map((row) => row.watchStatus)), new Set(["followed"]));
+  assert.throws(() => upsertWatchState({ title: "测试", status: "bad" }), /不支持的监控状态/);
+});
+
 test("ranking query labels sample capture and live rows", () => {
   useTempDb("ranking-data-kind");
   upsertRankingEntries([
@@ -395,7 +519,9 @@ test("normalizeRankingFilters validates source match and date", () => {
       dataKind: "capture",
       rankType: "1",
       rankPeriod: "week",
-      periodValue: "2026-06-01 ~ 2026-06-07"
+      periodValue: "2026-06-01 ~ 2026-06-07",
+      watchStatus: "followed",
+      listingStatus: "rank_up"
     }),
     {
       date: "2026-06-05",
@@ -404,7 +530,9 @@ test("normalizeRankingFilters validates source match and date", () => {
       dataKind: "capture",
       rankType: "1",
       rankPeriod: "week",
-      periodValue: "2026-06-01 ~ 2026-06-07"
+      periodValue: "2026-06-01 ~ 2026-06-07",
+      watchStatus: "followed",
+      listingStatus: "rank_up"
     }
   );
 
@@ -413,6 +541,8 @@ test("normalizeRankingFilters validates source match and date", () => {
   assert.throws(() => normalizeRankingFilters({ dataKind: "bad" }), /不支持的数据性质/);
   assert.throws(() => normalizeRankingFilters({ rankType: "bad" }), /不支持的榜单类型/);
   assert.throws(() => normalizeRankingFilters({ rankPeriod: "bad" }), /不支持的榜单周期/);
+  assert.throws(() => normalizeRankingFilters({ watchStatus: "bad" }), /不支持的监控状态/);
+  assert.throws(() => normalizeRankingFilters({ listingStatus: "bad" }), /不支持的上榜情况/);
   assert.throws(() => normalizeRankingFilters({ date: "2026-02-30" }), /date 必须是有效/);
 });
 

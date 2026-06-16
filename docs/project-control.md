@@ -1,6 +1,6 @@
 # 项目总控信源
 
-更新时间：2026-06-15
+更新时间：2026-06-16
 
 本文件是项目进入优化阶段后的主控真实信源。目标变更、任务拆分、线程启动或结束、关键决策、风险升级、Git 提交与阻塞解除，都先同步到这里。
 
@@ -60,6 +60,11 @@
 | 2026-06-15 | 隐藏榜单表格数据性质列 | 榜单核对表格需要进一步降低横向扫描成本，数据性质对运营核对不是首要字段 | 前端表格不展示 `数据性质` 列和 badge；底层 `dataKind` 数据、URL/API 查询和采集日志仍保留 |
 | 2026-06-15 | 隐藏榜单表格对应小说名称列 | 当前列表保留是否匹配和平台 id 即可满足核对，小说名称列增加横向扫描成本 | 前端表格不展示 `对应小说名称` 列和行内维护映射入口；底层 `matchedNovelNames` 查询结果和小说库维护能力不变 |
 | 2026-06-15 | 映射 Excel 支持同步平台 id 到小说主表 | 用户更新 `小说短剧漫剧映射.xlsx` 增加 `平台id` 列，榜单页平台 id 展示依赖 `novels.platform_id` | `/api/novels/import/mappings` 导入时读取 `平台id/平台ID/平台 id`；新建小说写入平台 id；已有小说仅在平台 id 为空时补齐，不覆盖非空值 |
+| 2026-06-16 | 榜单表格恢复匹配小说名称列 | 当前核对需要同时看到匹配小说名和平台 id，方便定位已匹配作品的小说归属 | 前端在 `平台 id` 前新增 `匹配小说名称` 列；未匹配行置空；不恢复行内维护映射入口，不改匹配规则 |
+| 2026-06-16 | 站内原生短剧导入增加跨周期重复拦截 | 0616 自动化复核发现 `day.xlsx` 和 `week.xlsx` 表头有效但规范化数据完全相同，说明仅校验表头无法发现 BI 图表误下载 | `native:import` 在写 SQLite 前比较 day/week/month 的剧名与消耗签名，任意两份完全相同则失败且不入库；0616 week 已重新下载并定向修正 |
+| 2026-06-16 | 榜单页升级为全量监控表 | 运营需要继续看到全量上榜作品，同时降低重复上榜作品的每日处理成本 | 新增作品级 `watch_states` 监控状态和上榜历史信号；页面增加监控摘要、监控状态筛选、上榜情况筛选和行内状态切换；不改变采集、导入和小说精确匹配规则 |
+| 2026-06-16 | 上榜情况排名变化改为颜色箭头 | 运营扫表时需要快速区分排名上升和下降，纯文本识别成本较高 | 前端仅调整展示：排名上升显示红色上箭头，排名下降显示绿色下箭头；历史统计和筛选逻辑不变 |
+| 2026-06-16 | 榜单页主内容区取消 1280px 固定上限 | 榜单表格是运营主工作区，宽屏下固定 1280px 会造成右侧大量空白，降低横向信息展示效率 | `.main` 改为占满 sidebar 以外的网页剩余宽度；表格面板和表格随页面宽度自适应 |
 
 ## 任务看板
 
@@ -102,6 +107,11 @@
 | T-035 | 隐藏榜单表格数据性质列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `dataKind` 展示列 | `components/DashboardClient.jsx` 移除表格数据性质列，`app/globals.css` 移除 data-kind badge 样式，测试覆盖、主控文档同步 | 页面不再展示表格 `数据性质` 列；空表格 `colSpan=8`；URL/API `dataKind` 能力保留；lint、测试和页面 HTML 验收通过 |
 | T-036 | 隐藏榜单表格对应小说名称列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `matchedNovelNames` 展示列 | `components/DashboardClient.jsx` 移除对应小说名称列、行内维护映射链接和无用 `returnToRankings`，`app/globals.css` 移除 `table-link` 样式，测试覆盖、主控文档同步 | 页面不再展示表格 `对应小说名称` 列；空表格 `colSpan=7`；平台 id 仍展示；lint、测试和页面 HTML 验收通过 |
 | T-037 | 映射 Excel 平台 id 导入 | 完成 | 实现型 Agent + 验证型 Agent | 用户更新后的 `assess/小说短剧漫剧映射.xlsx`、现有 `novels.platform_id` | `lib/novels.js` 支持映射 Excel 平台 id 解析和补齐，测试覆盖，README 和主控文档同步，本地 SQLite 已按更新文件重新导入 | 映射 Excel 30 行有效导入；涉及 15 本小说均有平台 id；已有非空平台 id 不被覆盖；目标测试通过 |
+| T-038 | 榜单表格恢复匹配小说名称列 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、现有 `matchedNovelNames` 查询结果 | `components/DashboardClient.jsx` 新增 `匹配小说名称` 列，测试覆盖，主控文档同步 | 列位于 `平台 id` 前；已匹配行展示小说名，未匹配行为空；空表格 `colSpan=8`；lint、测试和浏览器验收通过 |
+| T-039 | 站内原生短剧自动化重复周期防线 | 完成 | 总控 Agent | 0616 day/week 误下载复核、`native:import` 导入器 | 导入前跨周期内容签名校验、测试覆盖、README 和主控文档同步 | `day.xlsx` 与 `week.xlsx` 完全相同时导入失败且 SQLite 不新增；0616 正确周榜已重下，SQLite native week 已定向修正为 474 条 |
+| T-040 | 榜单监控状态与重复上榜识别优化 | 完成 | 实现型 Agent + 验证型 Agent | 当前全量榜单、小说匹配结果、历史 `ranking_entries` | `watch_states` 表、`PATCH /api/watch-states`、榜单历史统计、监控摘要、监控状态和上榜情况筛选、行内状态切换 | 默认仍展示全量榜单；重复上榜作品不隐藏；同名作品跨来源共享人工状态；测试覆盖数据层、API 静态契约和 UI 契约 |
+| T-041 | 上榜情况排名变化箭头展示 | 完成 | 实现型 Agent + 验证型 Agent | T-040、用户页面反馈 | `components/DashboardClient.jsx` 结构化渲染排名变化，`app/globals.css` 增加红色上箭头和绿色下箭头样式，测试覆盖 | 排名上升显示红色 `↑`，排名下降显示绿色 `↓`；连续/累计上榜文案保持不变；不改变统计和筛选逻辑 |
+| T-042 | 榜单表格容器宽度适配网页宽度 | 完成 | 实现型 Agent + 验证型 Agent | 用户页面反馈、T-040 表格列增加后宽屏展示需求 | `app/globals.css` 取消 `.main` 的 1280px 固定上限，测试覆盖 | 宽屏下 `.main` 和 `.table-panel` 占满 sidebar 外剩余宽度；表格不再停留在 1280px 内容上限 |
 
 ## 线程索引
 
@@ -111,7 +121,7 @@
 | DataEye 全量采集线程 | 验证新 4 个 DataEye 目标榜单与 day/week/month 周期 | 完成 | `.env.local.dataeye`、`captures/dataeye/2026-06-11`、SQLite | `docs/live-collection-preview.md`、`docs/live-collection-run.md`、SQLite live 数据 | 330 行预检 ready；live 落库新增 330 条；页面日期 `2026-06-11` 下日榜/周榜/月榜均可查询；`红果漫剧榜` 只确认 day，week/month 按不支持记录 |
 | 登录态稳定性线程 | 验证抓包刷新登录态和日常调度是否可靠 | 待启动 | Proxyman/Charles 抓包材料、capture scripts | 给出可稳定执行路径或阻塞原因 |
 | 原生 Excel 数据接入线程 | 将 `原生短剧数据` 或 `captures/原生短剧数据` 作为站内原生短剧来源入库并展示 | 完成 | `day.xlsx`、`week.xlsx`、`month.xlsx` | CLI/API/UI 可导入并展示；页面日期无匹配导出目录时可回退到最新完整导出目录；小说匹配复用现有精确匹配 |
-| 站内原生短剧后台下载线程 | 验证并调度从火山引擎 ABI 仪表盘下载 day/week/month Excel 并导入 | 已调度，待首个 08:00 自动运行结果 | 已登录 Chrome、dashboard 38518、三个表格菜单下载入口、Codex cron 自动化 | 三个 xlsx 可落到 `captures/原生短剧数据/<MMDD>`；自动化每天 08:00 执行下载、导入和后台读取验证 |
+| 站内原生短剧后台下载线程 | 验证并调度从火山引擎 ABI 仪表盘下载 day/week/month Excel 并导入 | 已调度，需按 0616 误下载结果优化 | 已登录 Chrome、dashboard 38518、三个表格菜单下载入口、Codex cron 自动化 | 三个 xlsx 可落到 `captures/原生短剧数据/<MMDD>`；自动化每天 08:00 执行下载、表头校验、跨周期重复校验、导入和后台读取验证 |
 | 小说库管理优化线程 | 将小说库改为本地 Excel/CSV 主库导入 + 单页映射维护，并支持独立映射 Excel 导入和映射核对筛选 | 完成 | 本地小说主库导出字段、映射 Excel、`novels`、`novel_mappings`、`/novels` 页面 | 小说主库可导入和搜索，映射 Excel 可批量写入映射，小说/短剧模糊搜索和映射状态筛选可用，榜单页回填短剧名路径保留 |
 | UI 升级线程 | 优化榜单页和小说库页的视觉层级与匹配状态筛选交互 | 完成 | `codex/UI-upgrade`、`design-taste-frontend`、当前页面反馈 | 视觉和交互自测通过，且不引入数据功能变更 |
 
@@ -119,13 +129,13 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 当前工作分支 | `codex/fix-02` |
-| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/fix-02` |
+| 当前工作分支 | `codex/rank-upgrade` |
+| 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/rank-upgrade` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 已推送 `origin/codex/fix-02`，Draft PR #10 已创建：https://github.com/fuer121/Dataeye/pull/10 |
+| 远端状态 | 本地新分支，尚未推送 |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
 | 最近主控提交 | T-037：映射 Excel 平台 id 导入 |
-| 本轮提交边界 | T-037：仅限映射 Excel 平台 id 解析、小说主表平台 id 补齐、相关测试和文档，不调整榜单采集或匹配规则 |
+| 本轮提交边界 | T-038/T-039/T-040：榜单表格恢复匹配小说名称列；站内原生短剧导入增加跨周期重复拦截；榜单页增加全量监控状态与重复上榜信号；不调整 DataEye 采集、小说匹配规则或原始 captures |
 | 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
 ## 风险与阻塞清单
@@ -146,10 +156,11 @@
 | 红果真实采集误启动 | 中 | 红果接口未验证 | 页面和脚本维持暂停，不进入 live |
 | Chrome 下载落到隐藏临时文件 | 中 | BI 后台下载时 Playwright download event 未触发，但 `~/Downloads/.com.google.Chrome.*` 临时文件是有效 XLSX | 自动化脚本需识别最新 Chrome 临时 XLSX、校验表头后原子移动为 `day.xlsx/week.xlsx/month.xlsx` |
 | BI 后台登录态或页面结构变化 | 高 | 当前验证依赖已登录 Chrome 页面、悬停菜单和下载弹窗 | 定时化前先实现登录态检查、页面元素兜底、下载失败提示和不落库保护 |
+| BI 图表误下载为同一周期数据 | 高 | 2026-06-16 `day.xlsx` 与 `week.xlsx` 文件哈希不同但规范化内容完全相同，SQLite day/week 也完全一致；随后已重下正确周榜并修正 SQLite | `native:import` 已增加跨周期重复拦截；自动化下载时仍需严格按 widget 标题定位更多菜单，不打开可视化查询页 |
 | Codex 本地自动化未运行 | 中 | 当前 08:00 任务依赖 Codex 自动化服务、本机在线、Chrome 可用和 workspace 可访问 | 首次 08:00 后检查自动化运行结果；若需要无人值守系统级稳定性，再迁移到 launchd + 专用下载脚本 |
 
 ## 下一步行动
 
-1. 首个 08:00 自动运行后检查 `captures/原生短剧数据/<MMDD>`、SQLite native live 行数和页面最新榜期是否同步更新。
+1. 下一次自动化运行后检查 `captures/原生短剧数据/<MMDD>`、跨周期重复校验、SQLite native live 行数和页面最新榜期是否同步更新。
 2. 如果 Codex 本地 cron 足够稳定，保持当前方案；如果需要脱离 Codex 或机器重启后强保证，再实现 launchd + 项目脚本方案。
 3. 原始 Excel、Chrome 临时下载文件和本地运行材料继续保持未提交，代码提交只包含脚本、测试和必要文档。

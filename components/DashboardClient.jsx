@@ -24,6 +24,21 @@ const matchLabels = {
   unmatched: "未匹配"
 };
 
+const watchStatusLabels = {
+  all: "全部",
+  pending: "待关注",
+  followed: "已关注",
+  ignored: "已忽略"
+};
+
+const listingStatusLabels = {
+  all: "全部",
+  new: "新上榜",
+  recurring: "连续上榜",
+  rank_up: "排名上升",
+  rank_down: "排名下降"
+};
+
 const runStatusLabels = {
   success: "成功",
   failed: "失败"
@@ -57,6 +72,8 @@ export default function DashboardClient({
   initialRankType = "all",
   initialRankPeriod = "day",
   initialPeriodValue = "",
+  initialWatchStatus = "all",
+  initialListingStatus = "all",
   initialItems = [],
   initialRuns = [],
   initialMvpStatus = null
@@ -74,19 +91,23 @@ export default function DashboardClient({
   const [rankType, setRankType] = useState(initialRankType);
   const [rankPeriod, setRankPeriod] = useState(initialSinglePeriod || initialRankPeriod);
   const [periodValue, setPeriodValue] = useState(initialPeriodValue);
+  const [watchStatus, setWatchStatus] = useState(initialWatchStatus);
+  const [listingStatus, setListingStatus] = useState(initialListingStatus);
   const [items, setItems] = useState(initialItems);
   const [runs, setRuns] = useState(initialRuns);
   const [mvpStatus, setMvpStatus] = useState(initialMvpStatus);
   const [loading, setLoading] = useState(false);
+  const [watchUpdatingTitle, setWatchUpdatingTitle] = useState("");
   const [message, setMessage] = useState(null);
   const isNativeView = source === "native";
   const isDataEyeView = source === "dataeye";
   const filterPeriodValue = isNativeView ? periodValue || date : periodValue;
   const shouldShowPeriodSwitch = !isDataEyeView || !singlePeriodDataEyeRankPeriods.has(String(rankType));
   const visibleItems = useMemo(() => items.filter(shouldDisplayRankingItem), [items]);
+  const monitorSummary = useMemo(() => getMonitorSummary(visibleItems), [visibleItems]);
 
   const query = useMemo(() => {
-    const params = new URLSearchParams({ source, match, dataKind, rankType, rankPeriod });
+    const params = new URLSearchParams({ source, match, dataKind, rankType, rankPeriod, watchStatus, listingStatus });
     if (isNativeView) {
       params.set("date", filterPeriodValue);
       params.set("periodValue", filterPeriodValue);
@@ -95,7 +116,7 @@ export default function DashboardClient({
       if (filterPeriodValue) params.set("periodValue", filterPeriodValue);
     }
     return params.toString();
-  }, [date, source, match, dataKind, rankType, rankPeriod, filterPeriodValue, isNativeView]);
+  }, [date, source, match, dataKind, rankType, rankPeriod, watchStatus, listingStatus, filterPeriodValue, isNativeView]);
 
   const runsQuery = useMemo(() => {
     const params = new URLSearchParams({
@@ -195,6 +216,8 @@ export default function DashboardClient({
 
     setSource(nextSource);
     setMatch("all");
+    setWatchStatus("all");
+    setListingStatus("all");
     setRankType(nextRankType);
     if (latestScope.date) {
       setDate(latestScope.date);
@@ -241,6 +264,8 @@ export default function DashboardClient({
       setSource("native");
       setDataKind("live");
       setMatch("all");
+      setWatchStatus("all");
+      setListingStatus("all");
       setPeriodValue(payload.rankingDate || date);
       await loadData();
       setMessage({
@@ -281,6 +306,42 @@ export default function DashboardClient({
       setMessage({ type: "error", text: error.message });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function updateWatchStatus(item, status) {
+    setWatchUpdatingTitle(item.normalizedTitle || item.title);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/watch-states", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: item.title, status, note: item.watchNote || "" })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "监控状态更新失败");
+      }
+
+      const updated = payload.item;
+      setItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          currentItem.normalizedTitle === updated.normalizedTitle
+            ? {
+                ...currentItem,
+                watchStatus: updated.status,
+                watchNote: updated.note,
+                watchUpdatedAt: updated.updatedAt
+              }
+            : currentItem
+        )
+      );
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setWatchUpdatingTitle("");
     }
   }
 
@@ -328,6 +389,26 @@ export default function DashboardClient({
             ))}
           </div>
         </fieldset>
+        <label>
+          监控状态
+          <select value={watchStatus} onChange={(event) => setWatchStatus(event.target.value)}>
+            {Object.entries(watchStatusLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          上榜情况
+          <select value={listingStatus} onChange={(event) => setListingStatus(event.target.value)}>
+            {Object.entries(listingStatusLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
         {isNativeView ? (
           <button className="primary-button compact" disabled={loading} onClick={importNativeRankings}>
             <Download size={16} />
@@ -350,6 +431,25 @@ export default function DashboardClient({
           </div>
         </section>
       ) : null}
+
+      <section className="monitor-summary" aria-label="榜单监控摘要">
+        <div>
+          <span>已匹配</span>
+          <strong>{monitorSummary.matched}</strong>
+        </div>
+        <div>
+          <span>待关注</span>
+          <strong>{monitorSummary.pending}</strong>
+        </div>
+        <div>
+          <span>新上榜</span>
+          <strong>{monitorSummary.newListings}</strong>
+        </div>
+        <div>
+          <span>连续上榜</span>
+          <strong>{monitorSummary.recurring}</strong>
+        </div>
+      </section>
 
       {isDataEyeView ? (
       <section className="rank-type-module" aria-label="榜单类型">
@@ -400,7 +500,7 @@ export default function DashboardClient({
           <span>{loading ? "处理中" : "已同步本地 SQLite"}</span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table className="rankings-table">
             <thead>
               <tr>
                 <th>榜期</th>
@@ -408,7 +508,10 @@ export default function DashboardClient({
                 <th>短剧/漫剧名称</th>
                 <th>{isNativeView ? "消耗" : "热度值"}</th>
                 <th>是否匹配小说</th>
+                <th>匹配小说名称</th>
                 <th>平台 id</th>
+                <th>上榜情况/排名变化</th>
+                <th>监控状态</th>
                 <th>采集时间</th>
               </tr>
             </thead>
@@ -422,13 +525,31 @@ export default function DashboardClient({
                   <td>
                     <span className={`badge ${item.matchStatus}`}>{item.matchStatus === "matched" ? "已匹配" : "未匹配"}</span>
                   </td>
+                  <td>{item.matchStatus === "matched" && item.matchedNovelNames !== "未匹配" ? item.matchedNovelNames : ""}</td>
                   <td>{item.matchedNovelPlatformIds || ""}</td>
+                  <td>{formatListingSummary(item)}</td>
+                  <td>
+                    <select
+                      className="watch-status-select"
+                      value={item.watchStatus || "pending"}
+                      disabled={watchUpdatingTitle === (item.normalizedTitle || item.title)}
+                      onChange={(event) => updateWatchStatus(item, event.target.value)}
+                    >
+                      {Object.entries(watchStatusLabels)
+                        .filter(([value]) => value !== "all")
+                        .map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                    </select>
+                  </td>
                   <td>{new Date(item.collectedAt).toLocaleString("zh-CN")}</td>
                 </tr>
               ))}
               {!visibleItems.length ? (
                 <tr>
-                  <td colSpan="7" className="empty-cell">
+                  <td colSpan="10" className="empty-cell">
                     当前筛选条件下暂无可展示数据。页面默认隐藏未命名的 DataEye 榜单；如需核对原始采集结果，请查看采集报告或后台查询。
                   </td>
                 </tr>
@@ -470,6 +591,51 @@ export default function DashboardClient({
 function shouldDisplayRankingItem(item) {
   if (item?.source !== "dataeye") return true;
   return namedDataEyeRankTypes.has(Number(item?.rankType));
+}
+
+function getMonitorSummary(items) {
+  return items.reduce(
+    (summary, item) => ({
+      matched: summary.matched + (item.matchStatus === "matched" ? 1 : 0),
+      pending: summary.pending + ((item.watchStatus || "pending") === "pending" ? 1 : 0),
+      newListings: summary.newListings + (item.isNewListing ? 1 : 0),
+      recurring: summary.recurring + (item.isRecurringListing ? 1 : 0)
+    }),
+    { matched: 0, pending: 0, newListings: 0, recurring: 0 }
+  );
+}
+
+function formatListingSummary(item) {
+  let listingText = "";
+  if (item.isNewListing) {
+    listingText = "新上榜";
+  } else if (Number(item.consecutiveListedDays) > 1) {
+    listingText = item.rankPeriod === "day" ? `连续 ${item.consecutiveListedDays} 天上榜` : `连续 ${item.consecutiveListedDays} 期上榜`;
+  } else if (Number(item.totalListedDays) > 1) {
+    listingText = item.rankPeriod === "day" ? `累计 ${item.totalListedDays} 天上榜` : `累计 ${item.totalListedDays} 期上榜`;
+  }
+
+  const rankChange = Number(item.rankChange);
+  const hasRankChange = item.previousRank !== null && item.previousRank !== undefined && Number.isFinite(rankChange);
+  if (!listingText && !hasRankChange) return "";
+
+  return (
+    <span className="listing-summary">
+      {listingText ? <span>{listingText}</span> : null}
+      {listingText && hasRankChange ? <span className="listing-separator">/</span> : null}
+      {rankChange > 0 ? (
+        <span className="rank-change rank-change-up" aria-label={`排名上升 ${rankChange}`}>
+          排名↑{rankChange}
+        </span>
+      ) : null}
+      {rankChange < 0 ? (
+        <span className="rank-change rank-change-down" aria-label={`排名下降 ${Math.abs(rankChange)}`}>
+          排名↓{Math.abs(rankChange)}
+        </span>
+      ) : null}
+      {hasRankChange && rankChange === 0 ? <span className="rank-change rank-change-flat">排名持平</span> : null}
+    </span>
+  );
 }
 
 function formatHeatValue(value, isNativeView) {
