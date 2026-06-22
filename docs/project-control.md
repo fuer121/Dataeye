@@ -134,9 +134,9 @@
 | 当前工作分支 | `codex/rank-upgrade` |
 | 上游 | `origin/main` 为分支来源；推送目标为 `origin/codex/rank-upgrade` |
 | 分支来源 | 最新 `origin/main` |
-| 远端状态 | 已跟踪 `origin/codex/rank-upgrade`；本轮提交后推送到同名远端分支 |
+| 远端状态 | PR #12 已创建：`https://github.com/fuer121/Dataeye/pull/12` |
 | 最近已合并功能 | PR #6：站内原生短剧 Tab 与 Excel 导入 |
-| 最近主控提交 | T-042：榜单表格容器宽度适配网页宽度 |
+| 最近主控提交 | T-043：DataEye 登录态恢复模块按重新抓包流程显示 |
 | 本轮提交边界 | T-043：DataEye 登录态恢复模块默认隐藏，仅在重新抓包流程显式开启；不调整 DataEye 采集、小说匹配规则或原始 captures |
 | 暂存说明 | `captures/`、`原生短剧数据/`、`.env.local*`、`Dify-flow/`、`assess/`、`app/novels/*.csv` 属本地数据/材料，均排除本次提交 |
 
