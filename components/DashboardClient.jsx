@@ -76,7 +76,8 @@ export default function DashboardClient({
   initialListingStatus = "all",
   initialItems = [],
   initialRuns = [],
-  initialMvpStatus = null
+  initialMvpStatus = null,
+  showDataEyeLoginRefresh = false
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -131,7 +132,7 @@ export default function DashboardClient({
   const latestCapture = mvpStatus?.dataeye?.latestCapture;
   const hasExpiredDataEyePreview = latestPreview?.health === "auth_expired";
   const canRefreshDataEyeLogin = latestCapture?.freshness?.status === "fresh";
-  const shouldShowDataEyeLoginRefresh = hasExpiredDataEyePreview || canRefreshDataEyeLogin;
+  const shouldShowDataEyeLoginRefresh = showDataEyeLoginRefresh && (hasExpiredDataEyePreview || canRefreshDataEyeLogin);
   const dataEyeLoginRefreshText = canRefreshDataEyeLogin
     ? "已检测到 fresh DataEye 抓包，可以刷新登录态并预检。"
     : latestPreview?.action || "请重新打开剧查查小程序并用 Charles 导出新 HAR，然后刷新本地登录态。";

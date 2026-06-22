@@ -390,18 +390,21 @@ test("dashboard uses local MVP status only for recovery guidance", () => {
 
 test("dashboard shows DataEye preview recovery guidance when auth expires", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
+  const page = fs.readFileSync(path.join(process.cwd(), "app/page.jsx"), "utf8");
 
   assert.match(source, /latestPreview\?\.health === "auth_expired"/);
   assert.match(source, /npm run dataeye:refresh-login/);
   assert.match(source, /latestPreview\?\.action/);
   assert.match(source, /重新抓包并刷新 DataEye 登录态/);
+  assert.match(page, /showDataEyeLoginRefresh/);
+  assert.match(page, /refreshLogin/);
 });
 
-test("dashboard exposes login refresh when the latest DataEye capture is fresh", () => {
+test("dashboard only exposes login refresh when the recapture flow is explicit", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "components/DashboardClient.jsx"), "utf8");
 
   assert.match(source, /const canRefreshDataEyeLogin = latestCapture\?\.freshness\?\.status === "fresh";/);
-  assert.match(source, /hasExpiredDataEyePreview \|\| canRefreshDataEyeLogin/);
+  assert.match(source, /showDataEyeLoginRefresh && \(hasExpiredDataEyePreview \|\| canRefreshDataEyeLogin\)/);
   assert.match(source, /已检测到 fresh DataEye 抓包，可以刷新登录态并预检。/);
 });
 
