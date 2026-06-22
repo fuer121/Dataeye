@@ -50,7 +50,8 @@ test("README keeps fenced code blocks balanced and mentions verified DataEye liv
   assert.doesNotMatch(readme, /上传 API 也会返回 pipeline 摘要/);
   assert.match(readme, /抓包报告流程只生成分析、验证、预览和接口规格报告/);
   assert.match(readme, /\.har.*\.json.*\.txt.*\.curl/s);
-  assert.match(readme, /最新 DataEye 抓包为 fresh 时/);
+  assert.match(readme, /操作入口默认不展示/);
+  assert.match(readme, /\?showDataEyeLoginRefresh=1/);
   assert.match(readme, /刷新登录态并预检.*不会自动落库/s);
   assert.match(readme, /默认只接受 fresh 抓包材料/);
   assert.match(readme, /--allow-stale-capture/);

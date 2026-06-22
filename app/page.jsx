@@ -27,6 +27,8 @@ export default async function HomePage({ searchParams }) {
   const initialRankPeriod = getAllowed(params.rankPeriod, RANK_PERIODS, "day");
   const initialWatchStatus = getAllowed(params.watchStatus, WATCH_STATUSES, "all");
   const initialListingStatus = getAllowed(params.listingStatus, LISTING_STATUSES, "all");
+  const showDataEyeLoginRefresh =
+    getString(params.showDataEyeLoginRefresh) === "1" || getString(params.refreshLogin) === "1";
   const latestNativePeriodValue =
     initialSource === "native"
       ? getLatestPeriodValue({
@@ -72,6 +74,7 @@ export default async function HomePage({ searchParams }) {
       initialItems={initialItems}
       initialRuns={initialRuns}
       initialMvpStatus={initialMvpStatus}
+      showDataEyeLoginRefresh={showDataEyeLoginRefresh}
     />
   );
 }
